@@ -10,6 +10,7 @@ common:
   integration_platforms:
     - custom_plank
     - nrf54l15dk/nrf54l15/cpuapp
+    - nrf9160dk/nrf9160
 tests:
   app.default: {}
   app.debug:
