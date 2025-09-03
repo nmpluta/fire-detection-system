@@ -1,7 +1,7 @@
-Welcome to NCS Example Application's documentation!
+Welcome to Fire Detection System's documentation!
 ===================================================
 
-This is a simple Sphinx documentation setup for ``ncs-example-application``.
+This is a simple Sphinx documentation setup for ``fire-detection-system``.
 
 Indices and tables
 ==================
