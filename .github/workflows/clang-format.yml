@@ -1,0 +1,42 @@
+name: clang-format
+
+on:
+  pull_request:
+    paths:
+      - '**/*.c'
+      - '**/*.cpp'
+      - '**/*.h'
+      - '**/*.hpp'
+
+jobs:
+  clang-format:
+    runs-on: ubuntu-24.04
+    name: Run clang-format
+
+    steps:
+    - name: Checkout repository with fire detection system
+      uses: actions/checkout@v4
+
+    - name: Install clang-format
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y clang-format-18
+
+    - name: Fetch base_ref branch
+      run: |
+        git fetch origin ${{ github.base_ref }}
+
+    - name: Run clang-format on changed files
+      run: |
+        git diff --name-only --diff-filter=ACMRTUXB origin/${{ github.base_ref }} | \
+          grep -E '\.(c|cpp|h|hpp)$' | \
+          xargs -r clang-format-18 -i -style=file
+
+    - name: Check for unformatted files
+      run: |
+        if git diff --exit-code; then
+          echo "All files are properly formatted."
+        else
+          echo "Code is not formatted correctly. Please run clang-format."
+          exit 1
+        fi
