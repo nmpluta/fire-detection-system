@@ -1,52 +1,19 @@
-# nRF Connect SDK example application
+# Fire Detection System
 
-<a href="https://github.com/nrfconnect/ncs-example-application/actions/workflows/build-using-docker.yml?query=branch%3Amain">
-  <img src="https://github.com/nrfconnect/ncs-example-application/actions/workflows/build-using-docker.yml/badge.svg?event=push">
+<a href="https://github.com/nmpluta/fire-detection-system/actions/workflows/build-using-docker.yml?query=branch%3Amain">
+  <img src="https://github.com/nmpluta/fire-detection-system/actions/workflows/build-using-docker.yml/badge.svg?event=push">
 </a>
-<a href="https://github.com/nrfconnect/ncs-example-application/actions/workflows/docs.yml?query=branch%3Amain">
-  <img src="https://github.com/nrfconnect/ncs-example-application/actions/workflows/docs.yml/badge.svg?event=push">
+<a href="https://github.com/nmpluta/fire-detection-system/actions/workflows/docs.yml?query=branch%3Amain">
+  <img src="https://github.com/nmpluta/fire-detection-system/actions/workflows/docs.yml/badge.svg?event=push">
 </a>
-<a href="https://nrfconnect.github.io/ncs-example-application">
+<a href="https://nmpluta.github.io/fire-detection-system">
   <img alt="Documentation" src="https://img.shields.io/badge/documentation-3D578C?logo=sphinx&logoColor=white">
 </a>
-<a href="https://nrfconnect.github.io/ncs-example-application/doxygen">
+<a href="https://nmpluta.github.io/fire-detection-system/doxygen">
   <img alt="API Documentation" src="https://img.shields.io/badge/API-documentation-3D578C?logo=c&logoColor=white">
 </a>
 
-This repository contains an nRF Connect SDK example application. The main
-purpose of this repository is to serve as a reference on how to structure nRF Connect
-SDK based applications. Some of the features demonstrated in this example are:
-
-- Basic [Zephyr application][app_dev] skeleton
-- [Zephyr workspace applications][workspace_app]
-- [Zephyr modules][modules]
-- [West T2 topology][west_t2]
-- [Custom boards][board_porting]
-- Custom [devicetree bindings][bindings]
-- Out-of-tree [drivers][drivers]
-- Out-of-tree libraries
-- Example CI configuration (using GitHub Actions)
-- Custom [west extension][west_ext]
-- Custom [Zephyr runner][runner_ext]
-- Doxygen and Sphinx documentation boilerplate
-
-This repository is versioned together with the [nRF Connect SDK main tree][sdk-nrf]. This
-means that every time that nRF Connect SDK is tagged, this repository is tagged as well
-with the same version number, and the [manifest](west.yml) entry for `zephyr`
-will point to the corresponding nRF Connect SDK tag. For example, the `ncs-example-application`
-v2.5.0 will point to nRF Connect SDK v2.5.0. Note that the `main` branch always
-points to the development branch of nRF Connect SDK, also `main`.
-
-[app_dev]: https://docs.zephyrproject.org/latest/develop/application/index.html
-[workspace_app]: https://docs.zephyrproject.org/latest/develop/application/index.html#zephyr-workspace-app
-[modules]: https://docs.zephyrproject.org/latest/develop/modules.html
-[west_t2]: https://docs.zephyrproject.org/latest/develop/west/workspaces.html#west-t2
-[board_porting]: https://docs.zephyrproject.org/latest/guides/porting/board_porting.html
-[bindings]: https://docs.zephyrproject.org/latest/guides/dts/bindings.html
-[drivers]: https://docs.zephyrproject.org/latest/reference/drivers/index.html
-[sdk-nrf]: https://github.com/nrfconnect/sdk-nrf
-[west_ext]: https://docs.zephyrproject.org/latest/develop/west/extensions.html
-[runner_ext]: https://docs.zephyrproject.org/latest/develop/modules.html#external-runners
+This repository contains an nRF Connect SDK based Fire Detection System application. This project is designed for early detection of wildfires using a network of sensors monitoring temperature, humidity, and smoke levels. The system is built on the Zephyr RTOS and utilizes LTE-M communication for reliable data transmission even in remote areas.
 
 ## Getting started
 
@@ -56,15 +23,15 @@ Follow the official
 
 ### Initialization
 
-The first step is to initialize the workspace folder (``my-workspace``) where
-the ``ncs-example-application`` and all nRF Connect SDK modules will be cloned. Run the following
+The first step is to initialize the workspace folder (``fire-detection-system-workspace``) where
+the ``fire-detection-system`` and all nRF Connect SDK modules will be cloned. Run the following
 command:
 
 ```shell
-# initialize my-workspace for the ncs-example-application (main branch)
-west init -m https://github.com/nrfconnect/ncs-example-application --mr main my-workspace
+# initialize fire-detection-system-workspace for the fire-detection-system (main branch)
+west init -m https://github.com/nmpluta/fire-detection-system --mr main fire-detection-system-workspace
 # update nRF Connect SDK modules
-cd my-workspace
+cd fire-detection-system-workspace
 west update
 ```
 
@@ -73,7 +40,7 @@ west update
 To build the application, run the following command:
 
 ```shell
-cd example-application
+cd fire-detection-system
 west build -b $BOARD app
 ```
 

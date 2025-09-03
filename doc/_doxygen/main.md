@@ -1,5 +1,5 @@
 # Introduction
 
-This is the Doxygen documentation for [ncs-example-application].
+This is the Doxygen documentation for [fire-detection-system].
 
-[ncs-example-application]: https://github.com/nrfconnect/ncs-example-application
+[fire-detection-system]: https://github.com/nmpluta/fire-detection-system

@@ -5,7 +5,7 @@
 
 /* This devicetree overlay file will be automatically picked by the Zephyr
  * build system when building the sample for the nRF54l15 DK (cpuapp) board.
- * It shows how the ncs-example-application can be built on sample boards
+ * It shows how the fire-detection-system can be built on sample boards
  * already provided by Zephyr or NCS.
  */
 

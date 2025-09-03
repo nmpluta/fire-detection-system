@@ -7,15 +7,15 @@ jobs:
   build-and-test-in-toolchain-bundle:
     runs-on: ubuntu-24.04
     steps:
-      - name: Checkout repository with example application
+      - name: Checkout repository with fire detection system
         uses: actions/checkout@v4
         with:
-          path: example-application
+          path: fire-detection-system
 
       - name: Prepare west project
         run: |
           python3 -m pip install west
-          west init -l example-application
+          west init -l fire-detection-system
           west update -o=--depth=1 -n
 
       - name: Install nrfutil and toolchain manager
@@ -51,10 +51,10 @@ jobs:
 
       - name: Build firmware
         run: |
-          ./nrfutil toolchain-manager launch --chdir example-application -- west twister -T app -v --inline-logs --integration
+          ./nrfutil toolchain-manager launch --chdir fire-detection-system -- west twister -T app -v --inline-logs --integration
 
       - name: Store hex files
         uses: actions/upload-artifact@v4
         with:
           name: built-applications
-          path: example-application/twister-out/**/zephyr/zephyr.hex
+          path: fire-detection-system/twister-out/**/zephyr/zephyr.hex

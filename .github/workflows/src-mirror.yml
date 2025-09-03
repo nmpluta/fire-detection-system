@@ -31,7 +31,7 @@ jobs:
       - name: Upload src.tar.gz
         uses: nrfconnect/action-src-mirror@main
         with:
-          path: 'ncs-example-application'
+          path: 'fire-detection-system'
           west-update-args: ''
           artifactory-path: >-
             ${{ (github.ref_type != 'tag') &&
