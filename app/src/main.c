@@ -21,7 +21,7 @@ int main(void)
 	int ret;
 	unsigned int period_ms = BLINK_PERIOD_MS_MAX;
 	const struct device *sensor, *blink;
-	struct sensor_value last_val = { 0 }, val;
+	struct sensor_value last_val = {0}, val;
 
 	printk("Zephyr Fire Detection System %s\n", APP_VERSION_STRING);
 
@@ -65,8 +65,7 @@ int main(void)
 				period_ms -= BLINK_PERIOD_MS_STEP;
 			}
 
-			printk("Proximity detected, setting LED period to %u ms\n",
-			       period_ms);
+			printk("Proximity detected, setting LED period to %u ms\n", period_ms);
 			blink_set_period_ms(blink, period_ms);
 		}
 
@@ -77,4 +76,3 @@ int main(void)
 
 	return 0;
 }
-

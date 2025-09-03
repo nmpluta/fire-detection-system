@@ -76,11 +76,9 @@ __subsystem struct blink_driver_api {
  * @retval -EINVAL if @p period_ms can not be set.
  * @retval -errno Other negative errno code on failure.
  */
-__syscall int blink_set_period_ms(const struct device *dev,
-				  unsigned int period_ms);
+__syscall int blink_set_period_ms(const struct device *dev, unsigned int period_ms);
 
-static inline int z_impl_blink_set_period_ms(const struct device *dev,
-					     unsigned int period_ms)
+static inline int z_impl_blink_set_period_ms(const struct device *dev, unsigned int period_ms)
 {
 	__ASSERT_NO_MSG(DEVICE_API_IS(blink, dev));
 
