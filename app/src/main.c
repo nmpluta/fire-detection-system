@@ -19,15 +19,14 @@ LOG_MODULE_REGISTER(main, CONFIG_APP_LOG_LEVEL);
 int main(void)
 {
 	int ret;
-	unsigned int period_ms = BLINK_PERIOD_MS_MAX;
 	const struct device *sensor, *blink;
-	struct sensor_value last_val = {0}, val;
+	struct sensor_value temp, press, hum;
 
-	printk("Zephyr Fire Detection System %s\n", APP_VERSION_STRING);
+	LOG_INF("Zephyr Fire Detection System %s", APP_VERSION_STRING);
 
-	sensor = DEVICE_DT_GET(DT_NODELABEL(example_sensor));
+	sensor = DEVICE_DT_GET(DT_NODELABEL(bme280));
 	if (!device_is_ready(sensor)) {
-		LOG_ERR("Sensor not ready");
+		LOG_ERR("BME280 sensor not ready");
 		return 0;
 	}
 
@@ -43,35 +42,36 @@ int main(void)
 		return 0;
 	}
 
-	printk("Use the sensor to change LED blinking period\n");
-
 	while (1) {
 		ret = sensor_sample_fetch(sensor);
 		if (ret < 0) {
-			LOG_ERR("Could not fetch sample (%d)", ret);
-			return 0;
+			LOG_ERR("Could not fetch BME280 sample (%d)", ret);
+			k_sleep(K_MSEC(1000));
+			continue;
 		}
 
-		ret = sensor_channel_get(sensor, SENSOR_CHAN_PROX, &val);
+		ret = sensor_channel_get(sensor, SENSOR_CHAN_AMBIENT_TEMP, &temp);
 		if (ret < 0) {
-			LOG_ERR("Could not get sample (%d)", ret);
-			return 0;
+			LOG_ERR("Could not get temperature (%d)", ret);
+			continue;
 		}
 
-		if ((last_val.val1 == 0) && (val.val1 == 1)) {
-			if (period_ms == 0U) {
-				period_ms = BLINK_PERIOD_MS_MAX;
-			} else {
-				period_ms -= BLINK_PERIOD_MS_STEP;
-			}
-
-			printk("Proximity detected, setting LED period to %u ms\n", period_ms);
-			blink_set_period_ms(blink, period_ms);
+		ret = sensor_channel_get(sensor, SENSOR_CHAN_PRESS, &press);
+		if (ret < 0) {
+			LOG_ERR("Could not get pressure (%d)", ret);
+			continue;
 		}
 
-		last_val = val;
+		ret = sensor_channel_get(sensor, SENSOR_CHAN_HUMIDITY, &hum);
+		if (ret < 0) {
+			LOG_ERR("Could not get humidity (%d)", ret);
+			continue;
+		}
 
-		k_sleep(K_MSEC(100));
+		LOG_INF("BME280: Temp: %d.%06d C, Press: %d.%06d kPa, Hum: %d.%06d %%", temp.val1,
+			temp.val2, press.val1, press.val2, hum.val1, hum.val2);
+
+		k_sleep(K_MSEC(1000));
 	}
 
 	return 0;
