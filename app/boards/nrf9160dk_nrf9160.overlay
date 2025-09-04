@@ -25,9 +25,25 @@
 	pinctrl-0 = <&i2c2_default_alt>;
 	pinctrl-1 = <&i2c2_sleep_alt>;
 	pinctrl-names = "default", "sleep";
+	
 	bme280: bme280@77 {
 		compatible = "bosch,bme280";
 		reg = <0x77>;
+		status = "okay";
+	};
+	
+	ccs811: ccs811@5b {
+		compatible = "ams,ccs811";
+		reg = <0x5b>;
+		status = "okay";
+		reset-gpios = <&gpio0 23 GPIO_ACTIVE_LOW>;
+		irq-gpios = <&gpio0 24 GPIO_ACTIVE_LOW>;
+		wake-gpios = <&gpio0 25 GPIO_ACTIVE_LOW>;
+	};
+	
+	hm3301: hm3301@40 {
+		compatible = "seeed,hm330x";
+		reg = <0x40>;
 		status = "okay";
 	};
 };
