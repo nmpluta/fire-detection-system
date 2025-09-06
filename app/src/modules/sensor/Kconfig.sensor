@@ -1,0 +1,141 @@
+# SPDX-License-Identifier: Apache-2.0
+
+config SENSOR_MODULE
+	bool "Sensor Module"
+	default y
+	depends on ZBUS && SENSOR
+	help
+	  Enable the sensor module for multi-sensor data collection
+	  with ZBUS communication support.
+
+if SENSOR_MODULE
+
+config SENSOR_MODULE_STACK_SIZE
+	int "Sensor thread stack size"
+	default 2048
+	help
+	  Stack size for the sensor thread.
+
+config SENSOR_MODULE_THREAD_PRIORITY
+	int "Sensor thread priority"
+	default 5
+	help
+	  Priority for the sensor thread.
+
+config SENSOR_MODULE_LOG_LEVEL
+	int "Sensor module log level"
+	default 3
+	help
+	  Log level for the sensor module (0-4, where 0 is none and 4 is debug).
+
+config SENSOR_MODULE_READ_TIMEOUT_MS
+	int "Sensor read timeout (ms)"
+	default 5000
+	help
+	  Timeout for automatic sensor reading when no requests are received.
+
+config SENSOR_MODULE_RECOVERY_DELAY_MS
+	int "Recovery attempt delay (ms)"
+	default 2000
+	help
+	  Delay between sensor recovery attempts.
+
+config SENSOR_MODULE_MAX_RETRIES
+	int "Maximum recovery attempts"
+	default 3
+	help
+	  Maximum number of recovery attempts before giving up.
+
+config CCS811_ENV_COMPENSATION
+	bool "Enable environmental compensation for CCS811"
+	default y
+	depends on CCS811 && BME280
+	help
+	  Enable updating CCS811 environmental data register with 
+	  temperature and humidity values from BME280 sensor.
+	  This improves accuracy of CO2 and VOC measurements by
+	  compensating for environmental conditions.
+
+config CCS811_DEFAULT_TEMPERATURE
+	int "Fallback temperature for CCS811, Celsius"
+	default 22
+	depends on CCS811_ENV_COMPENSATION
+	help
+	  Default temperature value to use for CCS811 environmental
+	  compensation when BME280 sensor is not available or fails.
+
+config CCS811_DEFAULT_HUMIDITY
+	int "Fallback humidity for CCS811, %RH"
+	default 50
+	depends on CCS811_ENV_COMPENSATION
+	help
+	  Default humidity value to use for CCS811 environmental
+	  compensation when BME280 sensor is not available or fails.
+
+config CCS811_TEMP_THRESHOLD_MICRO
+	int "CCS811 temperature update threshold (micro-degrees)"
+	default 500000
+	depends on CCS811_ENV_COMPENSATION
+	help
+	  Temperature change threshold in micro-degrees Celsius for updating
+	  CCS811 environmental compensation. Default is 0.5°C.
+
+config CCS811_HUM_THRESHOLD_MICRO
+	int "CCS811 humidity update threshold (micro-percent)"
+	default 500000
+	depends on CCS811_ENV_COMPENSATION
+	help
+	  Humidity change threshold in micro-percent RH for updating
+	  CCS811 environmental compensation. Default is 0.5%RH.
+
+config SENSOR_MODULE_ZBUS_SUBSCRIBER_QUEUE_SIZE
+	int "ZBUS subscriber queue size"
+	default 4
+	help
+	  Queue size for the ZBUS sensor request subscriber.
+
+config SENSOR_MODULE_THREAD_SLEEP_MS
+	int "Thread sleep interval (ms)"
+	default 100
+	help
+	  Sleep interval for the sensor thread main loop.
+
+config SENSOR_MODULE_PUBLISH_TIMEOUT_MS
+	int "ZBUS publish timeout (ms)"
+	default 100
+	help
+	  Timeout for publishing sensor request messages.
+
+config SENSOR_MODULE_DATA_PUBLISH_TIMEOUT_MS
+	int "ZBUS data publish timeout (ms)"
+	default 1000
+	help
+	  Timeout for publishing sensor response data messages.
+
+config SENSOR_MODULE_MAX_RECOVERY_ATTEMPTS
+	int "Maximum recovery attempts before exhaustion"
+	default 5
+	help
+	  Maximum number of consecutive recovery attempts before
+	  giving up and staying in error state.
+
+config SENSOR_MODULE_RECOVERY_RETRY_DELAY_MS
+	int "Delay between recovery retry attempts (ms)"
+	default 1000
+	help
+	  Delay between recovery retry attempts when recovery fails.
+
+config SENSOR_MODULE_HEALTH_SAMPLE_SIZE
+	int "Health monitoring sample size"
+	default 10
+	help
+	  Number of recent attempts to consider for sensor health calculation.
+
+config SENSOR_MODULE_HEALTH_FAILURE_THRESHOLD_PERCENT
+	int "Health failure threshold percentage"
+	default 50
+	range 1 99
+	help
+	  Failure rate percentage above which a sensor is considered unhealthy.
+
+endif # SENSOR_MODULE
