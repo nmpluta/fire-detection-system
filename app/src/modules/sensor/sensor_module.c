@@ -10,11 +10,18 @@
 
 LOG_MODULE_REGISTER(sensor_module, CONFIG_SENSOR_MODULE_LOG_LEVEL);
 
+/* Macro to validate sensor type enum values */
+#define IS_VALID_SENSOR_TYPE(type) ((int)(type) >= 0 && (type) < SENSOR_TYPE_COUNT)
+
 /* Macro for type-safe sensor state object initialization */
 #define SENSOR_STATE_OBJECT_INIT()                                                                 \
+	(struct sensor_state_object)                                                               \
 	{                                                                                          \
 		.ctx = {0}, .current_state = SENSOR_MODULE_STATE_INIT, .current_data = {0},        \
-		.error_count = 0, .max_retries = 0, .last_read_time = 0, .read_timeout_ms = 0      \
+		.error_count = 0, .max_retries = 0, .last_read_time = 0, .read_timeout_ms = 0,     \
+		IF_ENABLED(CONFIG_SENSOR_MODULE_WARMUP_ENABLE, \
+			   (.sensor_init_time = 0,                \
+			    .sensor_warmup_complete = {false}))                                   \
 	}
 
 /* ZBUS subscriber for sensor requests */
@@ -56,6 +63,12 @@ struct sensor_state_object {
 	/* Timing */
 	int64_t last_read_time;
 	int64_t read_timeout_ms;
+
+#ifdef CONFIG_SENSOR_MODULE_WARMUP_ENABLE
+	/* Sensor warmup tracking */
+	int64_t sensor_init_time;
+	bool sensor_warmup_complete[SENSOR_TYPE_COUNT];
+#endif
 };
 
 /* Forward declarations for state functions */
@@ -115,6 +128,11 @@ static void update_sensor_health(struct sensor_health *health, bool success);
 static const char *get_sensor_name(enum sensor_type type);
 static void sensor_set_state(struct sensor_state_object *ctx, enum sensor_module_state new_state);
 
+#ifdef CONFIG_SENSOR_MODULE_WARMUP_ENABLE
+static bool is_sensor_warmup_complete(enum sensor_type type);
+static int64_t get_sensor_warmup_time(enum sensor_type type);
+#endif
+
 #ifdef CONFIG_CCS811_ENV_COMPENSATION
 static int update_ccs811_env_data(const struct sensor_value *temp, const struct sensor_value *hum);
 static void handle_ccs811_env_compensation(const struct sensor_value *temp,
@@ -127,7 +145,7 @@ int sensor_module_init(void)
 	int ret;
 
 	/* Initialize state machine context */
-	sensor_state_obj = (struct sensor_state_object)SENSOR_STATE_OBJECT_INIT();
+	sensor_state_obj = SENSOR_STATE_OBJECT_INIT();
 
 	sensor_state_obj.max_retries = CONFIG_SENSOR_MODULE_MAX_RETRIES;
 	sensor_state_obj.read_timeout_ms = CONFIG_SENSOR_MODULE_READ_TIMEOUT_MS;
@@ -246,6 +264,14 @@ static void sensor_state_init_run(void *obj)
 		return;
 	}
 
+#ifdef CONFIG_SENSOR_MODULE_WARMUP_ENABLE
+	/* Initialize warmup timing */
+	ctx->sensor_init_time = k_uptime_get();
+	for (int i = 0; i < SENSOR_TYPE_COUNT; i++) {
+		ctx->sensor_warmup_complete[i] = false;
+	}
+#endif
+
 	/* Initialize context with configured values */
 	ctx->error_count = 0;
 	ctx->max_retries = sensor_state_obj.max_retries;
@@ -292,6 +318,15 @@ static void sensor_state_reading_run(void *obj)
 			continue;
 		}
 
+#ifdef CONFIG_SENSOR_MODULE_WARMUP_ENABLE
+		/* Check if sensor warmup is complete */
+		if (!is_sensor_warmup_complete(i)) {
+			LOG_DBG("Sensor SM: %s warmup not complete, skipping read",
+				get_sensor_name(i));
+			continue;
+		}
+#endif
+
 		int ret = read_sensor_data(i, &ctx->current_data);
 		if (ret == 0) {
 			successful_reads++;
@@ -319,18 +354,43 @@ static void sensor_state_reading_run(void *obj)
 		}
 	}
 
-	/* Count enabled sensors */
+	/* Count enabled sensors that have completed warmup */
 	int enabled_sensor_count = 0;
 	for (int i = 0; i < SENSOR_TYPE_COUNT; i++) {
 		if (sensors[i].enabled) {
+#ifdef CONFIG_SENSOR_MODULE_WARMUP_ENABLE
+			if (is_sensor_warmup_complete(i)) {
+				enabled_sensor_count++;
+			}
+#else
 			enabled_sensor_count++;
+#endif
 		}
 	}
 
 	/* Only publish data if at least one sensor read successfully */
 	if (successful_reads == 0) {
+#ifdef CONFIG_SENSOR_MODULE_WARMUP_ENABLE
+		/* Check if any sensors are still warming up */
+		bool any_warming = false;
+		for (int i = 0; i < SENSOR_TYPE_COUNT; i++) {
+			if (sensors[i].enabled && !is_sensor_warmup_complete(i)) {
+				any_warming = true;
+				break;
+			}
+		}
+
+		if (any_warming) {
+			LOG_DBG("Sensor SM: No readings yet - sensors still warming up");
+			sensor_set_state(ctx, SENSOR_MODULE_STATE_IDLE);
+		} else {
+			LOG_ERR("Sensor SM: All sensors failed, entering error state");
+			sensor_set_state(ctx, SENSOR_MODULE_STATE_ERROR);
+		}
+#else
 		LOG_ERR("Sensor SM: All sensors failed, entering error state");
 		sensor_set_state(ctx, SENSOR_MODULE_STATE_ERROR);
+#endif
 	} else if (successful_reads < enabled_sensor_count) {
 		LOG_WRN("Sensor SM: Partial sensor failure (%d/%d successful), but publishing "
 			"available data",
@@ -441,8 +501,8 @@ static int read_sensor_data(enum sensor_type type, struct sensor_msg *data)
 		return -EINVAL;
 	}
 
-	if (type >= SENSOR_TYPE_COUNT || !sensors[type].enabled) {
-		LOG_ERR("Invalid or disabled sensor type: %d", type);
+	if (!IS_VALID_SENSOR_TYPE(type) || !sensors[type].enabled) {
+		LOG_ERR("Invalid or disabled sensor type: %d", (int)type);
 		return -EINVAL;
 	}
 
@@ -610,7 +670,7 @@ static void handle_ccs811_fallback_compensation(void)
 
 int sensor_module_get_sensor_info(enum sensor_type sensor_type, struct sensor_info *sensor_info)
 {
-	if (sensor_type >= SENSOR_TYPE_COUNT || !sensor_info) {
+	if (!IS_VALID_SENSOR_TYPE(sensor_type) || !sensor_info) {
 		LOG_ERR("Invalid parameters for sensor info request");
 		return -EINVAL;
 	}
@@ -703,3 +763,48 @@ static void sensor_set_state(struct sensor_state_object *ctx, enum sensor_module
 	ctx->current_state = new_state;
 	smf_set_state(SMF_CTX(ctx), &sensor_states[new_state]);
 }
+
+#ifdef CONFIG_SENSOR_MODULE_WARMUP_ENABLE
+/* Helper function to get warmup time for a sensor type */
+static int64_t get_sensor_warmup_time(enum sensor_type type)
+{
+	switch (type) {
+	case SENSOR_TYPE_BME280:
+		return CONFIG_SENSOR_MODULE_BME280_WARMUP_MS;
+	case SENSOR_TYPE_CCS811:
+		return CONFIG_SENSOR_MODULE_CCS811_WARMUP_MS;
+	case SENSOR_TYPE_HM3301:
+		return CONFIG_SENSOR_MODULE_HM3301_WARMUP_MS;
+	default:
+		return 0;
+	}
+}
+
+/* Helper function to check if sensor warmup is complete */
+static bool is_sensor_warmup_complete(enum sensor_type type)
+{
+	if (!IS_VALID_SENSOR_TYPE(type)) {
+		LOG_ERR("Invalid sensor type: %d", (int)type);
+		return false;
+	}
+
+	/* Check if already marked as complete */
+	if (sensor_state_obj.sensor_warmup_complete[type]) {
+		return true;
+	}
+
+	/* Check if warmup time has elapsed */
+	int64_t elapsed_time = k_uptime_get() - sensor_state_obj.sensor_init_time;
+	int64_t warmup_time = get_sensor_warmup_time(type);
+
+	if (elapsed_time >= warmup_time) {
+		/* Mark as complete and log */
+		sensor_state_obj.sensor_warmup_complete[type] = true;
+		LOG_INF("Sensor SM: %s warmup complete after %lld ms", get_sensor_name(type),
+			elapsed_time);
+		return true;
+	}
+
+	return false;
+}
+#endif /* CONFIG_SENSOR_MODULE_WARMUP_ENABLE */
