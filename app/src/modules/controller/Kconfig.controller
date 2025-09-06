@@ -1,0 +1,79 @@
+# SPDX-License-Identifier: Apache-2.0
+
+config CONTROLLER_MODULE
+	bool "Controller Module"
+	default y
+	depends on ZBUS && SMF
+	help
+	  Enable the controller module that coordinates all other modules
+	  and handles application business logic.
+
+if CONTROLLER_MODULE
+
+config CONTROLLER_MODULE_STACK_SIZE
+	int "Controller thread stack size"
+	default 2048
+	help
+	  Stack size for the controller thread.
+
+config CONTROLLER_MODULE_THREAD_PRIORITY
+	int "Controller thread priority"
+	default 4
+	help
+	  Priority for the controller thread.
+
+config CONTROLLER_MODULE_LOG_LEVEL
+	int "Controller module log level"
+	default 3
+	help
+	  Log level for the controller module (0-4, where 0 is none and 4 is debug).
+
+config CONTROLLER_MODULE_SAMPLE_INTERVAL_MS
+	int "Default sensor sampling interval (ms)"
+	default 1000
+	help
+	  Default interval between sensor data requests.
+
+config CONTROLLER_MODULE_THREAD_SLEEP_MS
+	int "Controller thread sleep interval (ms)"
+	default 100
+	help
+	  Sleep interval for the controller thread main loop.
+
+config CONTROLLER_MODULE_ZBUS_SUBSCRIBER_QUEUE_SIZE
+	int "ZBUS subscriber queue size"
+	default 4
+	help
+	  Queue size for the ZBUS controller subscriber.
+
+config CONTROLLER_MODULE_MAX_RETRIES
+	int "Maximum error retries"
+	default 3
+	help
+	  Maximum number of consecutive errors before entering error state.
+
+config CONTROLLER_MODULE_RECOVERY_DELAY_MS
+	int "Recovery attempt delay (ms)"
+	default 2000
+	help
+	  Delay before attempting recovery from error state.
+
+config CONTROLLER_MODULE_MAX_RECOVERY_ATTEMPTS
+	int "Maximum recovery attempts"
+	default 5
+	help
+	  Maximum number of recovery attempts before giving up.
+
+config CONTROLLER_MODULE_RECOVERY_RETRY_DELAY_MS
+	int "Delay between recovery retry attempts (ms)"
+	default 1000
+	help
+	  Delay between recovery retry attempts when recovery fails.
+
+config CONTROLLER_MODULE_AUTO_START_SAMPLING
+	bool "Auto-start sensor sampling"
+	default y
+	help
+	  Automatically start sensor data sampling when controller enters idle state.
+
+endif # CONTROLLER_MODULE

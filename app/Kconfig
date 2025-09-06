@@ -15,6 +15,9 @@ menu "Application Configuration"
 # Include sensor module configuration
 rsource "src/modules/sensor/Kconfig.sensor"
 
+# Include controller module configuration
+rsource "src/modules/controller/Kconfig.controller"
+
 endmenu
 
 module = APP
