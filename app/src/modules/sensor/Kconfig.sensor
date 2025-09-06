@@ -46,6 +46,36 @@ config SENSOR_MODULE_MAX_RETRIES
 	help
 	  Maximum number of recovery attempts before giving up.
 
+# Sensor-specific warmup configurations
+config SENSOR_MODULE_WARMUP_ENABLE
+	bool "Enable sensor warmup periods"
+	default y
+	help
+	  Enable warmup delays for sensors that need stabilization time
+	  before providing accurate readings.
+
+config SENSOR_MODULE_CCS811_WARMUP_MS
+	int "CCS811 warmup period (ms)"
+	default 5000
+	depends on SENSOR_MODULE_WARMUP_ENABLE
+	help
+	  Warmup time required for CCS811 sensor before first valid reading.
+	  CCS811 needs time to stabilize after power-on or reset.
+
+config SENSOR_MODULE_BME280_WARMUP_MS
+	int "BME280 warmup period (ms)"
+	default 100
+	depends on SENSOR_MODULE_WARMUP_ENABLE
+	help
+	  Warmup time required for BME280 sensor before first valid reading.
+
+config SENSOR_MODULE_HM3301_WARMUP_MS
+	int "HM3301 warmup period (ms)"
+	default 100
+	depends on SENSOR_MODULE_WARMUP_ENABLE
+	help
+	  Warmup time required for HM3301 sensor before first valid reading.
+
 config CCS811_ENV_COMPENSATION
 	bool "Enable environmental compensation for CCS811"
 	default y
