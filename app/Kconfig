@@ -12,31 +12,8 @@ endmenu
 
 menu "Application Configuration"
 
-config CCS811_ENV_COMPENSATION
-	bool "Enable environmental compensation for CCS811"
-	default y
-	depends on CCS811 && BME280
-	help
-	  Enable updating CCS811 environmental data register with 
-	  temperature and humidity values from BME280 sensor.
-	  This improves accuracy of CO2 and VOC measurements by
-	  compensating for environmental conditions.
-
-config CCS811_DEFAULT_TEMPERATURE
-	int "Fallback temperature for CCS811, Celsius"
-	default 22
-	depends on CCS811_ENV_COMPENSATION
-	help
-	  Default temperature value to use for CCS811 environmental
-	  compensation when BME280 sensor is not available or fails.
-
-config CCS811_DEFAULT_HUMIDITY
-	int "Fallback humidity for CCS811, %RH"
-	default 50
-	depends on CCS811_ENV_COMPENSATION
-	help
-	  Default humidity value to use for CCS811 environmental
-	  compensation when BME280 sensor is not available or fails.
+# Include sensor module configuration
+rsource "src/modules/sensor/Kconfig.sensor"
 
 endmenu
 
