@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#ifndef MODULES_SENSOR_MODULE_H
-#define MODULES_SENSOR_MODULE_H
+#ifndef SENSOR_MODULE_H
+#define SENSOR_MODULE_H
 
 #include <zephyr/kernel.h>
 #include <zephyr/drivers/sensor.h>
@@ -126,4 +126,4 @@ int sensor_module_get_health(struct sensor_health *bme280_health,
 			     struct sensor_health *ccs811_health,
 			     struct sensor_health *hm3301_health);
 
-#endif /* MODULES_SENSOR_MODULE_H */
+#endif /* SENSOR_MODULE_H */

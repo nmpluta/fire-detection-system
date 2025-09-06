@@ -10,6 +10,13 @@
 
 LOG_MODULE_REGISTER(sensor_module, CONFIG_SENSOR_MODULE_LOG_LEVEL);
 
+/* Macro for type-safe sensor state object initialization */
+#define SENSOR_STATE_OBJECT_INIT()                                                                 \
+	{                                                                                          \
+		.ctx = {0}, .current_state = SENSOR_MODULE_STATE_INIT, .current_data = {0},        \
+		.error_count = 0, .max_retries = 0, .last_read_time = 0, .read_timeout_ms = 0      \
+	}
+
 /* ZBUS subscriber for sensor requests */
 ZBUS_SUBSCRIBER_DEFINE(sensor_request_subscriber, CONFIG_SENSOR_MODULE_ZBUS_SUBSCRIBER_QUEUE_SIZE);
 
@@ -32,9 +39,12 @@ enum sensor_module_event {
 	SENSOR_MODULE_EVENT_TIMEOUT
 };
 
-/* Sensor state machine context */
-struct sensor_sm_ctx {
+/* Sensor state machine object */
+struct sensor_state_object {
 	struct smf_ctx ctx;
+
+	/* Current state tracking */
+	enum sensor_module_state current_state;
 
 	/* Current sensor data */
 	struct sensor_msg current_data;
@@ -69,7 +79,7 @@ static const struct smf_state sensor_states[] = {
 		SMF_CREATE_STATE(NULL, sensor_state_recovery_run, NULL, NULL, NULL)};
 
 /* Global sensor state machine context */
-static struct sensor_sm_ctx sensor_sm;
+static struct sensor_state_object sensor_state_obj;
 
 /* Thread synchronization */
 static K_MUTEX_DEFINE(sensor_sm_mutex);
@@ -79,7 +89,7 @@ static K_MUTEX_DEFINE(sensor_sm_mutex);
 
 /* ZBUS channel definition */
 ZBUS_CHAN_DEFINE(sensor_chan, struct sensor_msg, NULL, NULL,
-		 ZBUS_OBSERVERS(sensor_response_listener, sensor_request_subscriber),
+		 ZBUS_OBSERVERS(controller_sensor_listener, sensor_request_subscriber),
 		 ZBUS_MSG_INIT(0));
 
 /* Sensor device pointers */
@@ -103,6 +113,7 @@ static int init_sensors(void);
 static int read_sensor_data(enum sensor_type type, struct sensor_msg *data);
 static void update_sensor_health(struct sensor_health *health, bool success);
 static const char *get_sensor_name(enum sensor_type type);
+static void sensor_set_state(struct sensor_state_object *ctx, enum sensor_module_state new_state);
 
 #ifdef CONFIG_CCS811_ENV_COMPENSATION
 static int update_ccs811_env_data(const struct sensor_value *temp, const struct sensor_value *hum);
@@ -116,19 +127,20 @@ int sensor_module_init(void)
 	int ret;
 
 	/* Initialize state machine context */
-	memset(&sensor_sm, 0, sizeof(sensor_sm));
+	sensor_state_obj = (struct sensor_state_object)SENSOR_STATE_OBJECT_INIT();
 
-	sensor_sm.max_retries = CONFIG_SENSOR_MODULE_MAX_RETRIES;
-	sensor_sm.read_timeout_ms = CONFIG_SENSOR_MODULE_READ_TIMEOUT_MS;
+	sensor_state_obj.max_retries = CONFIG_SENSOR_MODULE_MAX_RETRIES;
+	sensor_state_obj.read_timeout_ms = CONFIG_SENSOR_MODULE_READ_TIMEOUT_MS;
 
 	/* Initialize state machine */
-	smf_set_initial(SMF_CTX(&sensor_sm), &sensor_states[SENSOR_MODULE_STATE_INIT]);
+	smf_set_initial(SMF_CTX(&sensor_state_obj), &sensor_states[SENSOR_MODULE_STATE_INIT]);
+	sensor_state_obj.current_state = SENSOR_MODULE_STATE_INIT;
 
 	LOG_INF("Sensor state machine initialized");
 
 	/* Initialize sensors using state machine with mutex protection */
 	k_mutex_lock(&sensor_sm_mutex, K_FOREVER);
-	ret = smf_run_state(SMF_CTX(&sensor_sm));
+	ret = smf_run_state(SMF_CTX(&sensor_state_obj));
 	k_mutex_unlock(&sensor_sm_mutex);
 	if (ret < 0) {
 		LOG_ERR("Failed to run sensor state machine (%d)", ret);
@@ -176,38 +188,43 @@ static void sensor_thread(void *p1, void *p2, void *p3)
 		/* Wait for messages directly from ZBUS subscriber */
 		if (zbus_sub_wait(&sensor_request_subscriber, &chan, K_FOREVER) == 0) {
 			if (chan == &sensor_chan) {
-				msg = &MSG_TO_SENSOR_MSG(zbus_chan_const_msg(chan));
+				const void *chan_msg = zbus_chan_const_msg(chan);
 
-				if (msg != NULL && msg->type == SENSOR_SAMPLE_REQUEST) {
-					LOG_DBG("Processing sensor request directly");
+				if (chan_msg != NULL) {
+					msg = &MSG_TO_SENSOR_MSG(chan_msg);
 
-					/* Trigger state machine to read sensors with mutex
-					 * protection */
-					k_mutex_lock(&sensor_sm_mutex, K_FOREVER);
-					if (sensor_sm.ctx.current ==
-					    &sensor_states[SENSOR_MODULE_STATE_IDLE]) {
-						smf_set_state(
-							SMF_CTX(&sensor_sm),
-							&sensor_states
-								[SENSOR_MODULE_STATE_READING]);
+					if (msg->type == SENSOR_SAMPLE_REQUEST) {
+						LOG_DBG("Processing sensor request directly");
+
+						/* Trigger state machine to read sensors with mutex
+						 * protection */
+						k_mutex_lock(&sensor_sm_mutex, K_FOREVER);
+						if (sensor_state_obj.current_state ==
+						    SENSOR_MODULE_STATE_IDLE) {
+							sensor_set_state(
+								&sensor_state_obj,
+								SENSOR_MODULE_STATE_READING);
+						}
+
+						/* Run state machine - this performs blocking sensor
+						 * operations */
+						int ret = smf_run_state(SMF_CTX(&sensor_state_obj));
+						if (ret < 0) {
+							LOG_ERR("State machine execution failed "
+								"(%d)",
+								ret);
+							/* Error handling is done internally by the
+							 * state machine */
+						}
+						k_mutex_unlock(&sensor_sm_mutex);
 					}
-
-					/* Run state machine - this performs blocking sensor
-					 * operations */
-					int ret = smf_run_state(SMF_CTX(&sensor_sm));
-					if (ret < 0) {
-						LOG_ERR("State machine execution failed (%d)", ret);
-						/* Error handling is done internally by the state
-						 * machine */
-					}
-					k_mutex_unlock(&sensor_sm_mutex);
 				}
 			}
 		}
 
 		/* Also run state machine periodically for maintenance and recovery */
 		k_mutex_lock(&sensor_sm_mutex, K_FOREVER);
-		smf_run_state(SMF_CTX(&sensor_sm));
+		smf_run_state(SMF_CTX(&sensor_state_obj));
 		k_mutex_unlock(&sensor_sm_mutex);
 		k_sleep(K_MSEC(CONFIG_SENSOR_MODULE_THREAD_SLEEP_MS));
 	}
@@ -217,7 +234,7 @@ static void sensor_thread(void *p1, void *p2, void *p3)
 
 static void sensor_state_init_run(void *obj)
 {
-	struct sensor_sm_ctx *ctx = (struct sensor_sm_ctx *)obj;
+	struct sensor_state_object *ctx = (struct sensor_state_object *)obj;
 
 	LOG_INF("Sensor SM: Initializing sensors");
 
@@ -225,23 +242,23 @@ static void sensor_state_init_run(void *obj)
 	if (ret < 0) {
 		LOG_ERR("Sensor SM: Initialization failed (%d)", ret);
 		ctx->error_count++;
-		smf_set_state(SMF_CTX(ctx), &sensor_states[SENSOR_MODULE_STATE_ERROR]);
+		sensor_set_state(ctx, SENSOR_MODULE_STATE_ERROR);
 		return;
 	}
 
 	/* Initialize context with configured values */
 	ctx->error_count = 0;
-	ctx->max_retries = sensor_sm.max_retries;
-	ctx->read_timeout_ms = sensor_sm.read_timeout_ms;
+	ctx->max_retries = sensor_state_obj.max_retries;
+	ctx->read_timeout_ms = sensor_state_obj.read_timeout_ms;
 	ctx->last_read_time = k_uptime_get();
 
 	LOG_INF("Sensor SM: Initialization complete");
-	smf_set_state(SMF_CTX(ctx), &sensor_states[SENSOR_MODULE_STATE_IDLE]);
+	sensor_set_state(ctx, SENSOR_MODULE_STATE_IDLE);
 }
 
 static void sensor_state_idle_run(void *obj)
 {
-	struct sensor_sm_ctx *ctx = (struct sensor_sm_ctx *)obj;
+	struct sensor_state_object *ctx = (struct sensor_state_object *)obj;
 
 	LOG_DBG("Sensor SM: Idle state - waiting for requests");
 
@@ -251,13 +268,13 @@ static void sensor_state_idle_run(void *obj)
 	/* For demo purposes, automatically transition to reading after some time */
 	if (k_uptime_get() - ctx->last_read_time > ctx->read_timeout_ms) {
 		LOG_DBG("Sensor SM: Timeout - starting automatic read");
-		smf_set_state(SMF_CTX(ctx), &sensor_states[SENSOR_MODULE_STATE_READING]);
+		sensor_set_state(ctx, SENSOR_MODULE_STATE_READING);
 	}
 }
 
 static void sensor_state_reading_run(void *obj)
 {
-	struct sensor_sm_ctx *ctx = (struct sensor_sm_ctx *)obj;
+	struct sensor_state_object *ctx = (struct sensor_state_object *)obj;
 	int ret;
 
 	LOG_DBG("Sensor SM: Reading sensor data");
@@ -313,7 +330,7 @@ static void sensor_state_reading_run(void *obj)
 	/* Only publish data if at least one sensor read successfully */
 	if (successful_reads == 0) {
 		LOG_ERR("Sensor SM: All sensors failed, entering error state");
-		smf_set_state(SMF_CTX(ctx), &sensor_states[SENSOR_MODULE_STATE_ERROR]);
+		sensor_set_state(ctx, SENSOR_MODULE_STATE_ERROR);
 	} else if (successful_reads < enabled_sensor_count) {
 		LOG_WRN("Sensor SM: Partial sensor failure (%d/%d successful), but publishing "
 			"available data",
@@ -327,10 +344,9 @@ static void sensor_state_reading_run(void *obj)
 			ctx->error_count++;
 		} else {
 			LOG_DBG("Sensor SM: Partial data published successfully");
-			/* Don't reset error count completely, but don't increment it either */
 		}
 
-		smf_set_state(SMF_CTX(ctx), &sensor_states[SENSOR_MODULE_STATE_IDLE]);
+		sensor_set_state(ctx, SENSOR_MODULE_STATE_IDLE);
 	} else {
 		/* All sensors successful */
 		ret = zbus_chan_pub(&sensor_chan, &ctx->current_data,
@@ -343,25 +359,25 @@ static void sensor_state_reading_run(void *obj)
 			ctx->error_count = 0; /* Reset error count on complete success */
 		}
 
-		smf_set_state(SMF_CTX(ctx), &sensor_states[SENSOR_MODULE_STATE_IDLE]);
+		sensor_set_state(ctx, SENSOR_MODULE_STATE_IDLE);
 	}
 }
 
 static void sensor_state_error_run(void *obj)
 {
-	struct sensor_sm_ctx *ctx = (struct sensor_sm_ctx *)obj;
+	struct sensor_state_object *ctx = (struct sensor_state_object *)obj;
 
 	LOG_ERR("Sensor SM: Error state - attempting recovery");
 
 	/* Wait before attempting recovery using configurable delay */
 	k_sleep(K_MSEC(CONFIG_SENSOR_MODULE_RECOVERY_DELAY_MS));
 
-	smf_set_state(SMF_CTX(ctx), &sensor_states[SENSOR_MODULE_STATE_RECOVERY]);
+	sensor_set_state(ctx, SENSOR_MODULE_STATE_RECOVERY);
 }
 
 static void sensor_state_recovery_run(void *obj)
 {
-	struct sensor_sm_ctx *ctx = (struct sensor_sm_ctx *)obj;
+	struct sensor_state_object *ctx = (struct sensor_state_object *)obj;
 
 	LOG_INF("Sensor SM: Attempting recovery");
 
@@ -376,14 +392,14 @@ static void sensor_state_recovery_run(void *obj)
 		/* If recovery keeps failing, stay in error state */
 		if (ctx->error_count > CONFIG_SENSOR_MODULE_MAX_RECOVERY_ATTEMPTS) {
 			LOG_ERR("Sensor SM: Recovery attempts exhausted");
-			smf_set_state(SMF_CTX(ctx), &sensor_states[SENSOR_MODULE_STATE_ERROR]);
+			sensor_set_state(ctx, SENSOR_MODULE_STATE_ERROR);
 		} else {
 			/* Try recovery again */
 			k_sleep(K_MSEC(CONFIG_SENSOR_MODULE_RECOVERY_RETRY_DELAY_MS));
 		}
 	} else {
 		LOG_INF("Sensor SM: Recovery successful");
-		smf_set_state(SMF_CTX(ctx), &sensor_states[SENSOR_MODULE_STATE_IDLE]);
+		sensor_set_state(ctx, SENSOR_MODULE_STATE_IDLE);
 	}
 }
 
@@ -679,4 +695,11 @@ static const char *get_sensor_name(enum sensor_type type)
 	default:
 		return "Unknown";
 	}
+}
+
+/* Helper function to set state and keep current_state field in sync */
+static void sensor_set_state(struct sensor_state_object *ctx, enum sensor_module_state new_state)
+{
+	ctx->current_state = new_state;
+	smf_set_state(SMF_CTX(ctx), &sensor_states[new_state]);
 }
