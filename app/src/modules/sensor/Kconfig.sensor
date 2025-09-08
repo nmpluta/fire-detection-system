@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
-config SENSOR_MODULE
+menuconfig SENSOR_MODULE
 	bool "Sensor Module"
 	default y
 	depends on ZBUS && SENSOR
@@ -9,6 +9,10 @@ config SENSOR_MODULE
 	  with ZBUS communication support.
 
 if SENSOR_MODULE
+
+module = SENSOR_MODULE
+module-str = Sensor module
+source "subsys/logging/Kconfig.template.log_config"
 
 config SENSOR_MODULE_STACK_SIZE
 	int "Sensor thread stack size"
@@ -21,12 +25,6 @@ config SENSOR_MODULE_THREAD_PRIORITY
 	default 5
 	help
 	  Priority for the sensor thread.
-
-config SENSOR_MODULE_LOG_LEVEL
-	int "Sensor module log level"
-	default 3
-	help
-	  Log level for the sensor module (0-4, where 0 is none and 4 is debug).
 
 config SENSOR_MODULE_READ_TIMEOUT_MS
 	int "Sensor read timeout (ms)"

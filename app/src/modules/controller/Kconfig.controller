@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
-config CONTROLLER_MODULE
+menuconfig CONTROLLER_MODULE
 	bool "Controller Module"
 	default y
 	depends on ZBUS && SMF
@@ -10,23 +10,21 @@ config CONTROLLER_MODULE
 
 if CONTROLLER_MODULE
 
+module = CONTROLLER_MODULE
+module-str = Controller module
+source "subsys/logging/Kconfig.template.log_config"
+
 config CONTROLLER_MODULE_STACK_SIZE
-	int "Controller thread stack size"
+	int "Controller module thread stack size"
 	default 2048
 	help
-	  Stack size for the controller thread.
+	  Stack size for the controller module thread.
 
 config CONTROLLER_MODULE_THREAD_PRIORITY
-	int "Controller thread priority"
+	int "Controller module thread priority"
 	default 4
 	help
-	  Priority for the controller thread.
-
-config CONTROLLER_MODULE_LOG_LEVEL
-	int "Controller module log level"
-	default 3
-	help
-	  Log level for the controller module (0-4, where 0 is none and 4 is debug).
+	  Priority for the controller module thread.
 
 config CONTROLLER_MODULE_SAMPLE_INTERVAL_MS
 	int "Default sensor sampling interval (ms)"
@@ -35,10 +33,10 @@ config CONTROLLER_MODULE_SAMPLE_INTERVAL_MS
 	  Default interval between sensor data requests.
 
 config CONTROLLER_MODULE_THREAD_SLEEP_MS
-	int "Controller thread sleep interval (ms)"
+	int "Controller module thread sleep interval (ms)"
 	default 100
 	help
-	  Sleep interval for the controller thread main loop.
+	  Sleep interval for the controller module thread main loop.
 
 config CONTROLLER_MODULE_ZBUS_SUBSCRIBER_QUEUE_SIZE
 	int "ZBUS subscriber queue size"

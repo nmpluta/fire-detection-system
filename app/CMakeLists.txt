@@ -11,9 +11,11 @@ project(app LANGUAGES C)
 
 target_sources(app PRIVATE 
     src/main.c
-    src/modules/sensor/sensor_module.c
-    src/modules/controller/controller_module.c
 )
+
+# Add modules subdirectories
+add_subdirectory(src/modules/controller)
+add_subdirectory(src/modules/sensor)
 
 # Add include directories for modules
 target_include_directories(app PRIVATE src)
