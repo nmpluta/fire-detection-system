@@ -15,7 +15,7 @@ ZBUS_SUBSCRIBER_DEFINE(controller_sensor_subscriber,
 		       CONFIG_CONTROLLER_MODULE_ZBUS_SUBSCRIBER_QUEUE_SIZE);
 
 /* Controller state machine object initialization macro */
-#define CONTROLLER_STATE_OBJECT_INIT()                                                             \
+#define CONTROLLER_MODULE_STATE_OBJECT_INIT()                                                      \
 	(struct controller_state_object)                                                           \
 	{                                                                                          \
 		.sample_interval_ms = CONFIG_CONTROLLER_MODULE_SAMPLE_INTERVAL_MS,                 \
@@ -91,7 +91,7 @@ int controller_module_init(void)
 	LOG_INF("Initializing controller module");
 
 	/* Initialize state machine object */
-	controller_state_obj = CONTROLLER_STATE_OBJECT_INIT();
+	controller_state_obj = CONTROLLER_MODULE_STATE_OBJECT_INIT();
 
 	/* Initialize state machine */
 	smf_set_initial(SMF_CTX(&controller_state_obj),
