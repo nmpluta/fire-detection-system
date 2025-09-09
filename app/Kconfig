@@ -18,6 +18,9 @@ rsource "src/modules/sensor/Kconfig.sensor"
 # Include controller module configuration
 rsource "src/modules/controller/Kconfig.controller"
 
+# Include network module configuration
+rsource "src/modules/network/Kconfig.network"
+
 endmenu
 
 module = APP

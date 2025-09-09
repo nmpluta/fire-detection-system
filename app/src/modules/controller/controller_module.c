@@ -7,6 +7,7 @@
 #include <zephyr/logging/log.h>
 #include <zephyr/smf.h>
 #include <modules/sensor/sensor_module.h>
+#include <modules/network/network_module.h>
 
 LOG_MODULE_REGISTER(controller_module, CONFIG_CONTROLLER_MODULE_LOG_LEVEL);
 
@@ -20,7 +21,8 @@ ZBUS_SUBSCRIBER_DEFINE(controller_sensor_subscriber,
 	{                                                                                          \
 		.sample_interval_ms = CONFIG_CONTROLLER_MODULE_SAMPLE_INTERVAL_MS,                 \
 		.max_retries = CONFIG_CONTROLLER_MODULE_MAX_RETRIES, .sampling_active = false,     \
-		.sensor_module_ready = false, .ctx = {0}, .error_count = 0, .last_sample_time = 0, \
+		.sensor_module_ready = false, .network_connected = false, .ctx = {0},              \
+		.error_count = 0, .last_sample_time = 0,                                           \
 		.current_state = CONTROLLER_MODULE_STATE_INIT,                                     \
 	}
 
@@ -42,6 +44,7 @@ struct controller_state_object {
 
 	/* Module status tracking */
 	bool sensor_module_ready;
+	bool network_connected;
 };
 
 /* Forward declarations for state functions */
@@ -77,12 +80,20 @@ static struct k_thread controller_thread_data;
 /* Forward declarations */
 static void controller_thread(void *p1, void *p2, void *p3);
 static void sensor_response_callback(const struct zbus_channel *chan);
+static void network_response_callback(const struct zbus_channel *chan);
 static void log_sensor_data(const struct sensor_msg *msg);
 static void controller_set_state(struct controller_state_object *ctx,
 				 enum controller_module_state new_state);
 
 /* ZBUS listener for sensor responses */
 ZBUS_LISTENER_DEFINE(controller_sensor_listener, sensor_response_callback);
+
+/* ZBUS listener for network status updates */
+ZBUS_LISTENER_DEFINE(controller_network_listener, network_response_callback);
+
+/* Register listeners as observers for their respective channels */
+ZBUS_CHAN_ADD_OBS(network_chan, controller_network_listener, 0);
+ZBUS_CHAN_ADD_OBS(sensor_chan, controller_sensor_listener, 0);
 
 int controller_module_init(void)
 {
@@ -128,9 +139,9 @@ int controller_module_start_sampling(void)
 		controller_state_obj.sampling_active = true;
 		controller_state_obj.last_sample_time = k_uptime_get();
 		controller_set_state(&controller_state_obj, CONTROLLER_MODULE_STATE_ACTIVE);
-		LOG_INF("Controller: Starting data sampling");
+		LOG_INF("Starting data sampling");
 	} else {
-		LOG_WRN("Controller: Cannot start sampling from current state");
+		LOG_WRN("Cannot start sampling from current state");
 	}
 
 	k_mutex_unlock(&controller_sm_mutex);
@@ -144,7 +155,7 @@ int controller_module_stop_sampling(void)
 	controller_state_obj.sampling_active = false;
 	if (controller_state_obj.current_state == CONTROLLER_MODULE_STATE_ACTIVE) {
 		controller_set_state(&controller_state_obj, CONTROLLER_MODULE_STATE_IDLE);
-		LOG_INF("Controller: Stopping data sampling");
+		LOG_INF("Stopping data sampling");
 	}
 
 	k_mutex_unlock(&controller_sm_mutex);
@@ -177,7 +188,7 @@ static void controller_thread(void *p1, void *p2, void *p3)
 		if (ret == 0) {
 			/* Process received message if it's from sensor channel */
 			if (chan == &sensor_chan) {
-				LOG_DBG("Controller: Received sensor data via ZBUS");
+				LOG_DBG("Received sensor data via ZBUS");
 				/* Message processing is handled by the listener callback */
 			}
 		}
@@ -198,12 +209,12 @@ static void controller_state_init_run(void *obj)
 	int ret;
 	struct controller_state_object *ctx = (struct controller_state_object *)obj;
 
-	LOG_INF("Controller SM: Initializing");
+	LOG_INF("SM: Initializing");
 
 	/* Initialize sensor module */
 	ret = sensor_module_init();
 	if (ret < 0) {
-		LOG_ERR("Controller SM: Sensor module initialization failed (%d)", ret);
+		LOG_ERR("SM: Sensor module initialization failed (%d)", ret);
 		ctx->error_count++;
 		controller_set_state(ctx, CONTROLLER_MODULE_STATE_ERROR);
 		return;
@@ -212,7 +223,8 @@ static void controller_state_init_run(void *obj)
 	ctx->sensor_module_ready = true;
 	ctx->error_count = 0;
 
-	LOG_INF("Controller SM: Initialization complete");
+	LOG_INF("SM: Initialization complete");
+
 	controller_set_state(ctx, CONTROLLER_MODULE_STATE_IDLE);
 }
 
@@ -220,11 +232,11 @@ static void controller_state_idle_run(void *obj)
 {
 	struct controller_state_object *ctx = (struct controller_state_object *)obj;
 
-	LOG_DBG("Controller SM: Idle state");
+	LOG_DBG("SM: Idle state");
 
 	/* Check if sampling should be started automatically */
 	if (CONFIG_CONTROLLER_MODULE_AUTO_START_SAMPLING && !ctx->sampling_active) {
-		LOG_INF("Controller SM: Auto-starting sampling");
+		LOG_INF("SM: Auto-starting sampling");
 		ctx->sampling_active = true;
 		ctx->last_sample_time = k_uptime_get();
 		controller_set_state(ctx, CONTROLLER_MODULE_STATE_ACTIVE);
@@ -236,7 +248,7 @@ static void controller_state_active_run(void *obj)
 	int ret;
 	struct controller_state_object *ctx = (struct controller_state_object *)obj;
 
-	LOG_DBG("Controller SM: Active state");
+	LOG_DBG("SM: Active state");
 
 	/* Check if sampling should be stopped */
 	if (!ctx->sampling_active) {
@@ -247,11 +259,11 @@ static void controller_state_active_run(void *obj)
 	/* Check if it's time for next sample */
 	int64_t now = k_uptime_get();
 	if (now - ctx->last_sample_time >= ctx->sample_interval_ms) {
-		LOG_DBG("Controller SM: Requesting sensor data");
+		LOG_DBG("SM: Requesting sensor data");
 
 		ret = sensor_module_request_data();
 		if (ret < 0) {
-			LOG_ERR("Controller SM: Failed to request sensor data (%d)", ret);
+			LOG_ERR("SM: Failed to request sensor data (%d)", ret);
 			ctx->error_count++;
 			if (ctx->error_count > ctx->max_retries) {
 				controller_set_state(ctx, CONTROLLER_MODULE_STATE_ERROR);
@@ -268,7 +280,7 @@ static void controller_state_error_run(void *obj)
 {
 	struct controller_state_object *ctx = (struct controller_state_object *)obj;
 
-	LOG_ERR("Controller SM: Error state");
+	LOG_ERR("SM: Error state");
 
 	/* Wait before attempting recovery */
 	k_sleep(K_MSEC(CONFIG_CONTROLLER_MODULE_RECOVERY_DELAY_MS));
@@ -280,7 +292,7 @@ static void controller_state_recovery_run(void *obj)
 {
 	struct controller_state_object *ctx = (struct controller_state_object *)obj;
 
-	LOG_INF("Controller SM: Attempting recovery");
+	LOG_INF("SM: Attempting recovery");
 
 	/* Reset error count and try to recover */
 	ctx->error_count = 0;
@@ -290,18 +302,18 @@ static void controller_state_recovery_run(void *obj)
 	/* Re-initialize sensor module */
 	int ret = sensor_module_init();
 	if (ret < 0) {
-		LOG_ERR("Controller SM: Recovery failed (%d)", ret);
+		LOG_ERR("SM: Recovery failed (%d)", ret);
 		ctx->error_count++;
 
 		if (ctx->error_count > CONFIG_CONTROLLER_MODULE_MAX_RECOVERY_ATTEMPTS) {
-			LOG_ERR("Controller SM: Recovery attempts exhausted");
+			LOG_ERR("SM: Recovery attempts exhausted");
 			controller_set_state(ctx, CONTROLLER_MODULE_STATE_ERROR);
 		} else {
 			/* Try recovery again */
 			k_sleep(K_MSEC(CONFIG_CONTROLLER_MODULE_RECOVERY_RETRY_DELAY_MS));
 		}
 	} else {
-		LOG_INF("Controller SM: Recovery successful");
+		LOG_INF("SM: Recovery successful");
 		ctx->sensor_module_ready = true;
 		controller_set_state(ctx, CONTROLLER_MODULE_STATE_IDLE);
 	}
@@ -317,7 +329,7 @@ static void sensor_response_callback(const struct zbus_channel *chan)
 		if (chan_msg != NULL) {
 			msg = &MSG_TO_SENSOR_MSG(chan_msg);
 			if (msg->type == SENSOR_SAMPLE_RESPONSE) {
-				LOG_DBG("Controller: Processing sensor response");
+				LOG_DBG("Processing sensor response");
 				log_sensor_data(msg);
 
 				/* Reset error count on successful data reception */
@@ -356,4 +368,84 @@ static void controller_set_state(struct controller_state_object *ctx,
 {
 	ctx->current_state = new_state;
 	smf_set_state(SMF_CTX(ctx), &controller_states[new_state]);
+}
+
+/* Network response callback */
+static void network_response_callback(const struct zbus_channel *chan)
+{
+	if (chan == &network_chan) {
+		const struct network_msg *msg = zbus_chan_const_msg(chan);
+
+		k_mutex_lock(&controller_sm_mutex, K_FOREVER);
+
+		switch (msg->type) {
+		case NETWORK_CONNECTED:
+			LOG_INF("Network connected");
+			controller_state_obj.network_connected = true;
+			break;
+
+		case NETWORK_DISCONNECTED:
+			LOG_INF("Network disconnected");
+			controller_state_obj.network_connected = false;
+			break;
+
+		case NETWORK_QUALITY_SAMPLE_RESPONSE:
+#if defined(CONFIG_LTE_LC_CONN_EVAL_MODULE)
+			LOG_INF("Network quality - Signal strength: %d dBm, "
+				"Signal quality: %d",
+				msg->conn_eval_params.rsrp, msg->conn_eval_params.rsrq);
+#else
+			LOG_INF("Network quality sample received (evaluation not supported)");
+#endif
+			break;
+
+		case NETWORK_SYSTEM_MODE_RESPONSE:
+			LOG_INF("System mode response - Current mode: %d", msg->system_mode);
+			break;
+
+		case NETWORK_PSM_PARAMS:
+#if defined(CONFIG_LTE_LC_PSM_MODULE)
+			LOG_INF("PSM parameters - TAU: %d, Active time: %d", msg->psm_cfg.tau,
+				msg->psm_cfg.active_time);
+#else
+			LOG_INF("PSM parameters received (PSM not supported)");
+#endif
+			break;
+
+		case NETWORK_EDRX_PARAMS:
+#if defined(CONFIG_LTE_LC_EDRX_MODULE)
+			LOG_INF("eDRX parameters - Mode: %d, eDRX: %0.2f s, PTW: %.02f s",
+				msg->edrx_cfg.mode, (double)msg->edrx_cfg.edrx,
+				(double)msg->edrx_cfg.ptw);
+#else
+			LOG_INF("eDRX parameters received (eDRX not supported)");
+#endif
+			break;
+
+		case NETWORK_UICC_FAILURE:
+			LOG_WRN("SIM card failure detected");
+			controller_state_obj.network_connected = false;
+			break;
+
+		case NETWORK_ATTACH_REJECTED:
+			LOG_WRN("Network attach rejected");
+			controller_state_obj.network_connected = false;
+			break;
+
+		case NETWORK_MODEM_RESET_LOOP:
+			LOG_WRN("Modem reset loop detected");
+			controller_state_obj.network_connected = false;
+			break;
+
+		case NETWORK_LIGHT_SEARCH_DONE:
+			LOG_INF("Light search completed");
+			break;
+
+		default:
+			LOG_DBG("Unhandled network message type: %d", msg->type);
+			break;
+		}
+
+		k_mutex_unlock(&controller_sm_mutex);
+	}
 }

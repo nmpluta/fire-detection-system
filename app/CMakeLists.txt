@@ -16,6 +16,7 @@ target_sources(app PRIVATE
 # Add modules subdirectories
 add_subdirectory(src/modules/controller)
 add_subdirectory(src/modules/sensor)
+add_subdirectory(src/modules/network)
 
 # Add include directories for modules
 target_include_directories(app PRIVATE src)

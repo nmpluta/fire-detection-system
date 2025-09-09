@@ -1,0 +1,59 @@
+#
+# Copyright (c) 2024 Nordic Semiconductor
+#
+# SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
+#
+
+menuconfig NETWORK_MODULE
+	bool "Network Module"
+	default y
+	depends on ZBUS && (NRF_MODEM_LIB_NET_IF || (WIFI_NRF700X && WIFI_MGMT_EXT) || BOARD_NATIVE_POSIX)
+	help
+	  Enable the network module for connectivity management with
+	  ZBUS communication support. Provides state machine-based
+	  network connection handling and shell commands.
+
+if NETWORK_MODULE
+
+module = NETWORK_MODULE
+module-str = Network module
+source "subsys/logging/Kconfig.template.log_config"
+
+config NETWORK_MODULE_SHELL
+	bool "Network module shell commands"
+	default y if SHELL
+	help
+	  Enable shell commands for the network module.
+
+config NETWORK_MODULE_STACK_SIZE
+	int "Network module thread stack size"
+	default 2048
+
+config NETWORK_MODULE_WATCHDOG_TIMEOUT_SECONDS
+	int "Watchdog timeout"
+	default 600
+	help
+	  Timeout in seconds for the network module watchdog.
+	  The timeout given in this option covers both:
+	    * Waiting for an incoming message in zbus_sub_wait_msg().
+	    * Time spent processing the message, defined by
+	      CONFIG_NETWORK_MODULE_MSG_PROCESSING_TIMEOUT_SECONDS.
+	  Ensure that this value exceeds CONFIG_NETWORK_MODULE_MSG_PROCESSING_TIMEOUT_SECONDS.
+	  A small difference between the two can mean more frequent watchdog feeds, which increases
+	  power consumption.
+
+config NETWORK_MODULE_MSG_PROCESSING_TIMEOUT_SECONDS
+	int "Maximum message processing time"
+	default 570
+	help
+	  Maximum time allowed for processing a single message in the module's state machine.
+	  The value must be smaller than CONFIG_NETWORK_MODULE_WATCHDOG_TIMEOUT_SECONDS.
+
+config NETWORK_MODULE_SEARCH_NETWORK_ON_STARTUP
+	bool "Search for network on startup"
+	default y
+	help
+	  If enabled, the module will search for a network on startup.
+	  If disabled, network search must be triggered by a NETWORK_CONNECT_REQUEST message.
+
+endif # NETWORK_MODULE
