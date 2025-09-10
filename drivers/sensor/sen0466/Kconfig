@@ -1,4 +1,4 @@
-# Copyright (c) 2024-2025 Natalia Pluta
+# Copyright (c) 2025 Natalia Pluta
 # SPDX-License-Identifier: Apache-2.0
 
 menuconfig SEN0466
@@ -10,3 +10,53 @@ menuconfig SEN0466
 	  Enable driver for DFRobot SEN0466 electrochemical CO sensor.
 	  This sensor provides CO concentration measurements from 0-1000 ppm
 	  via I2C interface.
+
+if SEN0466
+
+choice SEN0466_SAMPLE_CONTENT
+    prompt "Sensor sample content"
+    default SEN0466_SAMPLE_ALL
+    help
+      Select which measurements are fetched and updated on each
+      sensor_sample_fetch() call.
+
+config SEN0466_SAMPLE_CO
+    bool "CO only"
+    help
+      Fetch only Carbon Monoxide concentration (ppm). Temperature is not
+      fetched. If temperature compensation is enabled, an external
+      temperature must be provided by the application.
+
+config SEN0466_SAMPLE_ALL
+    bool "CO + temperature"
+    help
+      Fetch both CO concentration and internal temperature in one operation.
+endchoice
+
+config SEN0466_TEMP_COMPENSATION
+    bool "Apply temperature compensation to CO"
+    default y
+    help
+      Adjust CO readings using temperature to improve accuracy.
+
+choice SEN0466_TEMP_COMPENSATION_SOURCE
+    prompt "Compensation temperature source"
+    depends on SEN0466_TEMP_COMPENSATION
+	default SEN0466_TEMP_COMP_INTEGRATED
+    help
+      Select which temperature is used for CO compensation.
+
+config SEN0466_TEMP_COMP_INTEGRATED
+    bool "Internal sensor temperature"
+    depends on SEN0466_SAMPLE_ALL
+    help
+      Use the internal temperature that is fetched together with CO.
+      Requires the data scope to include both CO and temperature.
+
+config SEN0466_TEMP_COMP_EXTERNAL
+    bool "External application-provided temperature"
+    help
+      Use temperature provided by the application via sen0466_temp_update().
+endchoice
+
+endif # SEN0466

@@ -12,21 +12,14 @@
 #include <zephyr/logging/log.h>
 
 /* SEN0466 commands */
-#define SEN0466_CMD_READ_CO       0x01
-#define SEN0466_CMD_READ_TEMP     0x02
-#define SEN0466_CMD_SET_ADDR      0x78
-#define SEN0466_CMD_FACTORY_RESET 0x79
-
 #define SEN0466_CMD_CHANGE_GET_METHOD     0X78
 #define SEN0466_CMD_GET_GAS_CONCENTRATION 0X86
 #define SEN0466_CMD_GET_TEMP              0X87
 #define SEN0466_CMD_GET_ALL_DATA          0X88
-/*
-#define SEN0466_CMD_SET_THRESHOLD_ALARMS       0X89
-#define SEN0466_CMD_IIC_AVAILABLE              0X90
-#define SEN0466_CMD_SENSOR_VOLTAGE             0X91
-#define SEN0466_CMD_CHANGE_IIC_ADDR            0X92
-*/
+#define SEN0466_CMD_SET_THRESHOLD_ALARMS  0X89
+#define SEN0466_CMD_IIC_AVAILABLE         0X90
+#define SEN0466_CMD_SENSOR_VOLTAGE        0X91
+#define SEN0466_CMD_CHANGE_IIC_ADDR       0X92
 
 /* SEN0466 mode values */
 #define SEN0466_MODE_INITIATIVE 0x03 /* Sensor continuously reports data */
@@ -40,8 +33,14 @@
 
 /* Device data */
 struct sen0466_data {
-	uint16_t co_ppm;     /* CO concentration in ppm */
+	uint16_t co_ppm; /* CO concentration in ppm */
+#if defined(CONFIG_SEN0466_SAMPLE_ALL)
 	double temp_celsius; /* Temperature in degrees Celsius */
+#endif
+#if defined(CONFIG_SEN0466_TEMP_COMP_EXTERNAL)
+	double ext_temp_celsius; /* External temperature for compensation */
+	bool ext_temp_valid;     /* Flag indicating if external temp is valid */
+#endif
 };
 
 /* Device configuration */

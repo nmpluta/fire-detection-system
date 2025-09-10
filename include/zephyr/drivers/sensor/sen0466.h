@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024
+ * Copyright (c) 2025 Natalia Pluta
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -45,6 +45,29 @@ enum sensor_channel_sen0466 {
 };
 
 // TODO: Implement SEN0466 specific sensor attributes.
+
+#if defined(CONFIG_SEN0466_TEMP_COMP_EXTERNAL)
+/**
+ * @brief Update external temperature for CO measurement compensation
+ *
+ * This function provides external temperature data to improve CO concentration measurements
+ * accuracy. The SEN0466 uses this for temperature compensation algorithms to adjust CO readings
+ * based on the temperature.
+ *
+ * @note Call this function before performing CO gas measurements to ensure the sensor's
+ *       temperature compensation is up to date.
+ *
+ * @note Internal temperature readings from the SEN0466 sensor can be enabled for compensation
+ * instead of using external temperature readings via SEN0466_CO_COMP_INTEGRATED configuration.
+ *
+ * @param dev Pointer to the sensor device
+ *
+ * @param temperature Current temperature at the sensor
+ *
+ * @return 0 if successful, negative errno code if failure.
+ */
+int sen0466_temp_update(const struct device *dev, const struct sensor_value *temperature);
+#endif /* CONFIG_SEN0466_TEMP_COMP_EXTERNAL */
 
 #ifdef __cplusplus
 }

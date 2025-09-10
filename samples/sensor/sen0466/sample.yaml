@@ -17,15 +17,90 @@ common:
     - nrf9160dk/nrf9160
 
 tests:
-  sample.sensor.sen0466:
+  sample.sensor.sen0466.all_with_integrated_temp_comp:
     harness: console
     harness_config:
       type: multi_line
       regex:
         - "Starting SEN0466 CO sensor sample application"
         - "SEN0466 device (.*) is ready"
-        - "CO\\[ppm\\]: \\d+"
-        - "TEMP\\[C\\]: -?\\d+\\.\\d+"
+        - "Configuration: Sample ALL, Temp compensation INTEGRATED"
+        - "CO: \\d+ ppm"
+        - "TEMP: -?\\d+\\.\\d+ C"
     timeout: 30
     filter: dt_compat_enabled("dfrobot,sen0466")
+    extra_args:
+      - CONFIG_SEN0466_SAMPLE_ALL=y
+      - CONFIG_SEN0466_TEMP_COMPENSATION=y
+      - CONFIG_SEN0466_TEMP_COMP_INTEGRATED=y
+
+  sample.sensor.sen0466.all_with_external_temp_comp:
+    harness: console
+    harness_config:
+      type: multi_line
+      regex:
+        - "Starting SEN0466 CO sensor sample application"
+        - "SEN0466 device (.*) is ready"
+        - "Configuration: Sample ALL, Temp compensation EXTERNAL"
+        - "External temperature provided: -?\\d+\\.\\d+ C"
+        - "CO: \\d+ ppm"
+        - "TEMP: -?\\d+\\.\\d+ C"
+        - "Updated external temperature: -?\\d+\\.\\d+ C"
+    timeout: 30
+    filter: dt_compat_enabled("dfrobot,sen0466")
+    extra_args:
+      - CONFIG_SEN0466_SAMPLE_ALL=y
+      - CONFIG_SEN0466_TEMP_COMPENSATION=y
+      - CONFIG_SEN0466_TEMP_COMP_EXTERNAL=y
+
+  sample.sensor.sen0466.all_no_temp_comp:
+    harness: console
+    harness_config:
+      type: multi_line
+      regex:
+        - "Starting SEN0466 CO sensor sample application"
+        - "SEN0466 device (.*) is ready"
+        - "Configuration: Sample ALL, Temp compensation DISABLED"
+        - "CO: \\d+ ppm"
+        - "TEMP: -?\\d+\\.\\d+ C"
+    timeout: 30
+    filter: dt_compat_enabled("dfrobot,sen0466")
+    extra_args:
+      - CONFIG_SEN0466_SAMPLE_ALL=y
+      - CONFIG_SEN0466_TEMP_COMPENSATION=n
+
+  sample.sensor.sen0466.co_only_with_external_temp_comp:
+    harness: console
+    harness_config:
+      type: multi_line
+      regex:
+        - "Starting SEN0466 CO sensor sample application"
+        - "SEN0466 device (.*) is ready"
+        - "Configuration: Sample CO ONLY, Temp compensation EXTERNAL"
+        - "External temperature provided: \\d+\\.\\d+ C"
+        - "CO: \\d+ ppm"
+        - "Temperature channel not available \\(CO-only mode\\)"
+        - "Updated external temperature: \\d+\\.\\d+ C"
+    timeout: 30
+    filter: dt_compat_enabled("dfrobot,sen0466")
+    extra_args:
+      - CONFIG_SEN0466_SAMPLE_CO=y
+      - CONFIG_SEN0466_TEMP_COMPENSATION=y
+      - CONFIG_SEN0466_TEMP_COMP_EXTERNAL=y
+
+  sample.sensor.sen0466.co_only_no_temp_comp:
+    harness: console
+    harness_config:
+      type: multi_line
+      regex:
+        - "Starting SEN0466 CO sensor sample application"
+        - "SEN0466 device (.*) is ready"
+        - "Configuration: Sample CO ONLY, Temp compensation DISABLED"
+        - "CO: \\d+ ppm"
+        - "Temperature channel not available \\(CO-only mode\\)"
+    timeout: 30
+    filter: dt_compat_enabled("dfrobot,sen0466")
+    extra_args:
+      - CONFIG_SEN0466_SAMPLE_CO=y
+      - CONFIG_SEN0466_TEMP_COMPENSATION=n
 
