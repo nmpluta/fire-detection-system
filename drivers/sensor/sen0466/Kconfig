@@ -1,0 +1,12 @@
+# Copyright (c) 2024-2025 Natalia Pluta
+# SPDX-License-Identifier: Apache-2.0
+
+menuconfig SEN0466
+	bool "DFRobot SEN0466 CO sensor"
+	default y
+	depends on DT_HAS_DFROBOT_SEN0466_ENABLED
+	select I2C
+	help
+	  Enable driver for DFRobot SEN0466 electrochemical CO sensor.
+	  This sensor provides CO concentration measurements from 0-1000 ppm
+	  via I2C interface.

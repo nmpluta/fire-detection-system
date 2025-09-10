@@ -49,7 +49,7 @@ jobs:
       - name: Install proper toolchain bundle
         run: ./nrfutil toolchain-manager install --toolchain-bundle ${{steps.set-tb-id.outputs.TOOLCHAIN_BUNDLE_NAME}}
 
-      - name: Build firmware
+      - name: Build Fire Detection System firmware
         run: |
           ./nrfutil toolchain-manager launch --chdir fire-detection-system -- west twister -T app -v --inline-logs --integration
 
