@@ -1,0 +1,31 @@
+sample:
+  name: SEN0466 CO Sensor Sample
+  description: Sample application for DFRobot SEN0466 CO sensor
+
+common:
+  tags:
+    - sensors
+    - i2c
+    - gas_sensor
+  depends_on:
+    - i2c
+  platform_allow:
+    - nrf52840dk/nrf52840
+    - nrf9160dk/nrf9160
+  integration_platforms:
+    - nrf52840dk/nrf52840
+    - nrf9160dk/nrf9160
+
+tests:
+  sample.sensor.sen0466:
+    harness: console
+    harness_config:
+      type: multi_line
+      regex:
+        - "Starting SEN0466 CO sensor sample application"
+        - "SEN0466 device (.*) is ready"
+        - "CO\\[ppm\\]: \\d+"
+        - "TEMP\\[C\\]: -?\\d+\\.\\d+"
+    timeout: 30
+    filter: dt_compat_enabled("dfrobot,sen0466")
+

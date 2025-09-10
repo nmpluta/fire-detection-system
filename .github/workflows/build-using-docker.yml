@@ -60,3 +60,8 @@ jobs:
         working-directory: fire-detection-system
         run: |
           west twister -T tests -v --inline-logs --integration
+
+      - name: Twister Samples
+        working-directory: fire-detection-system
+        run: |
+          west twister --testsuite-root samples -v --inline-logs --build-only
