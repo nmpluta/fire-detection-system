@@ -30,14 +30,14 @@
 &i2c0 {
 	status = "okay";
 	clock-frequency = <I2C_BITRATE_STANDARD>;
-    pinctrl-0 = <&i2c0_default_alt>;
-    pinctrl-1 = <&i2c0_sleep_alt>;
-    pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&i2c0_default_alt>;
+	pinctrl-1 = <&i2c0_sleep_alt>;
+	pinctrl-names = "default", "sleep";
 
 	sen0466: sen0466@74 {
 		compatible = "dfrobot,sen0466";
 		reg = <0x74>;
 		label = "SEN0466";
-        status = "okay";
+		status = "okay";
 	};
 };
