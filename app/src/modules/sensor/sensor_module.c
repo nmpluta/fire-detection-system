@@ -5,6 +5,7 @@
 
 #include "sensor_module.h"
 #include <zephyr/drivers/sensor/ccs811.h>
+#include <zephyr/drivers/sensor/sen0466.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/smf.h>
 
@@ -113,8 +114,11 @@ static struct sensor_info sensors[SENSOR_TYPE_COUNT] = {
 	[SENSOR_TYPE_CCS811] = {.device = DEVICE_DT_GET(DT_NODELABEL(ccs811)),
 				.health = {0},
 				.enabled = true},
-	[SENSOR_TYPE_HM3301] = {
-		.device = DEVICE_DT_GET(DT_NODELABEL(hm3301)), .health = {0}, .enabled = true}};
+	[SENSOR_TYPE_HM3301] = {.device = DEVICE_DT_GET(DT_NODELABEL(hm3301)),
+				.health = {0},
+				.enabled = true},
+	[SENSOR_TYPE_SEN0466] = {
+		.device = DEVICE_DT_GET(DT_NODELABEL(sen0466)), .health = {0}, .enabled = true}};
 
 /* Thread stack and data */
 static K_THREAD_STACK_DEFINE(sensor_thread_stack, CONFIG_SENSOR_MODULE_STACK_SIZE);
@@ -573,6 +577,22 @@ static int read_sensor_data(enum sensor_type type, struct sensor_msg *data)
 		}
 		break;
 
+	case SENSOR_TYPE_SEN0466:
+		ret = sensor_channel_get(device, SENSOR_CHAN_SEN0466_CO, &data->co);
+		if (ret < 0) {
+			LOG_ERR("Could not get CO (%d)", ret);
+			return ret;
+		}
+
+		/* Optionally read temperature if available */
+		ret = sensor_channel_get(device, SENSOR_CHAN_SEN0466_TEMP,
+					 &data->temperature_sen0466);
+		if (ret < 0) {
+			LOG_DBG("SEN0466 temperature not available (%d)", ret);
+			/* Temperature reading is optional, don't fail */
+		}
+		break;
+
 	default:
 		LOG_ERR("Unknown sensor type: %d", type);
 		return -EINVAL;
@@ -752,6 +772,8 @@ static const char *get_sensor_name(enum sensor_type type)
 		return "CCS811";
 	case SENSOR_TYPE_HM3301:
 		return "HM3301";
+	case SENSOR_TYPE_SEN0466:
+		return "SEN0466";
 	default:
 		return "Unknown";
 	}
@@ -775,6 +797,8 @@ static int64_t get_sensor_warmup_time(enum sensor_type type)
 		return CONFIG_SENSOR_MODULE_CCS811_WARMUP_MS;
 	case SENSOR_TYPE_HM3301:
 		return CONFIG_SENSOR_MODULE_HM3301_WARMUP_MS;
+	case SENSOR_TYPE_SEN0466:
+		return CONFIG_SENSOR_MODULE_SEN0466_WARMUP_MS;
 	default:
 		return 0;
 	}

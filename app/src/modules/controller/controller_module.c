@@ -343,6 +343,10 @@ static void log_sensor_data(const struct sensor_msg *msg)
 	LOG_INF("HM3301: PM1.0: %d ug/m3, PM2.5: %d ug/m3, PM10: %d ug/m3", msg->pm1_0.val1,
 		msg->pm2_5.val1, msg->pm10.val1);
 
+	/* Log SEN0466 data */
+	LOG_INF("SEN0466: CO: %d ppm, Temp: %d.%06d C", msg->co.val1, msg->temperature_sen0466.val1,
+		msg->temperature_sen0466.val2);
+
 	LOG_INF("Sensor data timestamp: %lld ms", msg->timestamp);
 }
 
