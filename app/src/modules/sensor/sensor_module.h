@@ -28,6 +28,7 @@ enum sensor_type {
 	SENSOR_TYPE_BME280 = 0,
 	SENSOR_TYPE_CCS811,
 	SENSOR_TYPE_HM3301,
+	SENSOR_TYPE_SEN0466,
 	SENSOR_TYPE_COUNT /* Keep this last - represents total number of sensors */
 };
 
@@ -65,6 +66,8 @@ struct sensor_msg {
 	struct sensor_value pm1_0;
 	struct sensor_value pm2_5;
 	struct sensor_value pm10;
+	struct sensor_value co;
+	struct sensor_value temperature_sen0466;
 
 	/* Timestamp - only valid for SENSOR_SAMPLE_RESPONSE */
 	int64_t timestamp;

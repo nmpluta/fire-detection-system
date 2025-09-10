@@ -76,6 +76,14 @@ config SENSOR_MODULE_HM3301_WARMUP_MS
 	help
 	  Warmup time required for HM3301 sensor before first valid reading.
 
+config SENSOR_MODULE_SEN0466_WARMUP_MS
+	int "SEN0466 warmup period (ms)"
+	default 5000
+	depends on SENSOR_MODULE_WARMUP_ENABLE
+	help
+	  Warmup time required for SEN0466 CO sensor before first valid reading.
+	  Electrochemical CO sensors typically need stabilization time.
+
 config CCS811_ENV_COMPENSATION
 	bool "Enable environmental compensation for CCS811"
 	default y
