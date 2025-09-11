@@ -22,7 +22,7 @@ LOG_MODULE_REGISTER(sensor_module, CONFIG_SENSOR_MODULE_LOG_LEVEL);
 		.error_count = 0, .max_retries = 0, .last_read_time = 0, .read_timeout_ms = 0,     \
 		IF_ENABLED(CONFIG_SENSOR_MODULE_WARMUP_ENABLE, \
 			   (.sensor_init_time = 0,                \
-			    .sensor_warmup_complete = {false}))                                   \
+				.sensor_warmup_complete = {false}))                                   \
 	}
 
 /* ZBUS subscriber for sensor requests */
@@ -65,7 +65,7 @@ struct sensor_state_object {
 	int64_t last_read_time;
 	int64_t read_timeout_ms;
 
-#ifdef CONFIG_SENSOR_MODULE_WARMUP_ENABLE
+#if defined(CONFIG_SENSOR_MODULE_WARMUP_ENABLE)
 	/* Sensor warmup tracking */
 	int64_t sensor_init_time;
 	bool sensor_warmup_complete[SENSOR_TYPE_COUNT];
@@ -132,12 +132,12 @@ static void update_sensor_health(struct sensor_health *health, bool success);
 static const char *get_sensor_name(enum sensor_type type);
 static void sensor_set_state(struct sensor_state_object *ctx, enum sensor_module_state new_state);
 
-#ifdef CONFIG_SENSOR_MODULE_WARMUP_ENABLE
+#if defined(CONFIG_SENSOR_MODULE_WARMUP_ENABLE)
 static bool is_sensor_warmup_complete(enum sensor_type type);
 static int64_t get_sensor_warmup_time(enum sensor_type type);
 #endif
 
-#ifdef CONFIG_CCS811_ENV_COMPENSATION
+#if defined(CONFIG_CCS811_ENV_COMPENSATION)
 static int update_ccs811_env_data(const struct sensor_value *temp, const struct sensor_value *hum);
 static void handle_ccs811_env_compensation(const struct sensor_value *temp,
 					   const struct sensor_value *hum);
@@ -268,7 +268,7 @@ static void sensor_state_init_run(void *obj)
 		return;
 	}
 
-#ifdef CONFIG_SENSOR_MODULE_WARMUP_ENABLE
+#if defined(CONFIG_SENSOR_MODULE_WARMUP_ENABLE)
 	/* Initialize warmup timing */
 	ctx->sensor_init_time = k_uptime_get();
 	for (int i = 0; i < SENSOR_TYPE_COUNT; i++) {
@@ -322,7 +322,7 @@ static void sensor_state_reading_run(void *obj)
 			continue;
 		}
 
-#ifdef CONFIG_SENSOR_MODULE_WARMUP_ENABLE
+#if defined(CONFIG_SENSOR_MODULE_WARMUP_ENABLE)
 		/* Check if sensor warmup is complete */
 		if (!is_sensor_warmup_complete(i)) {
 			LOG_DBG("Sensor SM: %s warmup not complete, skipping read",
@@ -337,7 +337,7 @@ static void sensor_state_reading_run(void *obj)
 			update_sensor_health(&sensors[i].health, true);
 			LOG_DBG("Sensor SM: %s read successful", get_sensor_name(i));
 
-#ifdef CONFIG_CCS811_ENV_COMPENSATION
+#if defined(CONFIG_CCS811_ENV_COMPENSATION)
 			/* Update CCS811 environmental compensation if BME280 succeeded */
 			if (i == SENSOR_TYPE_BME280) {
 				handle_ccs811_env_compensation(&ctx->current_data.temperature,
@@ -349,7 +349,7 @@ static void sensor_state_reading_run(void *obj)
 			LOG_WRN("Sensor SM: %s read failed (%d)", get_sensor_name(i), ret);
 			ctx->error_count++;
 
-#ifdef CONFIG_CCS811_ENV_COMPENSATION
+#if defined(CONFIG_CCS811_ENV_COMPENSATION)
 			/* Use fallback compensation if BME280 failed */
 			if (i == SENSOR_TYPE_BME280) {
 				handle_ccs811_fallback_compensation();
@@ -362,7 +362,7 @@ static void sensor_state_reading_run(void *obj)
 	int enabled_sensor_count = 0;
 	for (int i = 0; i < SENSOR_TYPE_COUNT; i++) {
 		if (sensors[i].enabled) {
-#ifdef CONFIG_SENSOR_MODULE_WARMUP_ENABLE
+#if defined(CONFIG_SENSOR_MODULE_WARMUP_ENABLE)
 			if (is_sensor_warmup_complete(i)) {
 				enabled_sensor_count++;
 			}
@@ -374,7 +374,7 @@ static void sensor_state_reading_run(void *obj)
 
 	/* Only publish data if at least one sensor read successfully */
 	if (successful_reads == 0) {
-#ifdef CONFIG_SENSOR_MODULE_WARMUP_ENABLE
+#if defined(CONFIG_SENSOR_MODULE_WARMUP_ENABLE)
 		/* Check if any sensors are still warming up */
 		bool any_warming = false;
 		for (int i = 0; i < SENSOR_TYPE_COUNT; i++) {
@@ -601,7 +601,7 @@ static int read_sensor_data(enum sensor_type type, struct sensor_msg *data)
 	return 0;
 }
 
-#ifdef CONFIG_CCS811_ENV_COMPENSATION
+#if defined(CONFIG_CCS811_ENV_COMPENSATION)
 static int update_ccs811_env_data(const struct sensor_value *temp, const struct sensor_value *hum)
 {
 	/* Validate inputs */
@@ -786,7 +786,7 @@ static void sensor_set_state(struct sensor_state_object *ctx, enum sensor_module
 	smf_set_state(SMF_CTX(ctx), &sensor_states[new_state]);
 }
 
-#ifdef CONFIG_SENSOR_MODULE_WARMUP_ENABLE
+#if defined(CONFIG_SENSOR_MODULE_WARMUP_ENABLE)
 /* Helper function to get warmup time for a sensor type */
 static int64_t get_sensor_warmup_time(enum sensor_type type)
 {
