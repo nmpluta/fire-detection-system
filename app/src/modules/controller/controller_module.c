@@ -11,10 +11,6 @@
 
 LOG_MODULE_REGISTER(controller_module, CONFIG_CONTROLLER_MODULE_LOG_LEVEL);
 
-/* ZBUS subscriber for sensor responses */
-ZBUS_SUBSCRIBER_DEFINE(controller_sensor_subscriber,
-		       CONFIG_CONTROLLER_MODULE_ZBUS_SUBSCRIBER_QUEUE_SIZE);
-
 /* Controller state machine object initialization macro */
 #define CONTROLLER_STATE_OBJECT_INIT()                                                             \
 	(struct controller_state_object)                                                           \
@@ -134,8 +130,6 @@ static void controller_thread(void *p1, void *p2, void *p3)
 	ARG_UNUSED(p2);
 	ARG_UNUSED(p3);
 
-	const struct zbus_channel *chan;
-
 	/* Initialize state machine object */
 	controller_state_obj = CONTROLLER_STATE_OBJECT_INIT();
 
@@ -154,18 +148,6 @@ static void controller_thread(void *p1, void *p2, void *p3)
 
 	LOG_INF("Controller module thread started");
 	while (1) {
-		/* Check for ZBUS messages with timeout */
-		int ret = zbus_sub_wait(&controller_sensor_subscriber, &chan,
-					K_MSEC(CONFIG_CONTROLLER_MODULE_THREAD_SLEEP_MS));
-
-		if (ret == 0) {
-			/* Process received message if it's from sensor channel */
-			if (chan == &sensor_chan) {
-				LOG_DBG("Received sensor data via ZBUS");
-				/* Message processing is handled by the listener callback */
-			}
-		}
-
 		/* Run state machine periodically */
 		k_mutex_lock(&controller_sm_mutex, K_FOREVER);
 		smf_run_state(SMF_CTX(&controller_state_obj));
