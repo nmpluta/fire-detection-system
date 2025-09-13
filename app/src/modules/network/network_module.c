@@ -16,7 +16,7 @@
 #include "modem/lte_lc.h"
 #include "modem/modem_info.h"
 #include "network_module.h"
-#include "../../app_fatal_error.h"
+#include "app_common.h"
 
 /* Register log module */
 LOG_MODULE_REGISTER(network_module, CONFIG_NETWORK_MODULE_LOG_LEVEL);

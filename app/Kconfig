@@ -21,6 +21,9 @@ rsource "src/modules/controller/Kconfig.controller"
 # Include network module configuration
 rsource "src/modules/network/Kconfig.network"
 
+# Include cloud module configuration
+rsource "src/modules/cloud/Kconfig.cloud"
+
 endmenu
 
 module = APP
