@@ -13,10 +13,11 @@ target_sources(app PRIVATE
     src/main.c
 )
 
-# Add modules subdirectories
+# Include modules
 add_subdirectory(src/modules/controller)
 add_subdirectory(src/modules/sensor)
 add_subdirectory(src/modules/network)
+add_subdirectory(src/modules/cloud)
 
 # Add include directories for modules
 target_include_directories(app PRIVATE src)

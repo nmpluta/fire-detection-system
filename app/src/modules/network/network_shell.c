@@ -91,11 +91,12 @@ static int cmd_signal_status(const struct shell *shell, size_t argc, char **argv
 		} else {
 			int rsrp_dbm = RSRP_IDX_TO_DBM((int)rsrp_raw);
 			shell_print(shell, "RSRP: %d dBm (index: %d)", rsrp_dbm, rsrp_raw);
-			shell_print(shell, "Signal strength: %s",
+			shell_print(shell, "Signal strength: %s, %d dBm",
 				    rsrp_dbm > -90    ? "Excellent"
 				    : rsrp_dbm > -105 ? "Good"
 				    : rsrp_dbm > -115 ? "Fair"
-						      : "Poor");
+						      : "Poor",
+				    rsrp_dbm);
 		}
 	} else {
 		shell_print(shell, "RSRP: Failed to get (%d)", ret);
