@@ -107,8 +107,7 @@ static K_MUTEX_DEFINE(sensor_sm_mutex);
 
 /* ZBUS channel definition */
 ZBUS_CHAN_DEFINE(sensor_chan, struct sensor_msg, NULL, NULL,
-		 ZBUS_OBSERVERS(controller_sensor_listener, sensor_request_subscriber),
-		 ZBUS_MSG_INIT(0));
+		 ZBUS_OBSERVERS(sensor_request_subscriber), ZBUS_MSG_INIT(0));
 
 /* Sensor device pointers */
 static struct sensor_info sensors[SENSOR_TYPE_COUNT] = {
