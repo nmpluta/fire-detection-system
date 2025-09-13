@@ -29,8 +29,20 @@ LOG_MODULE_REGISTER(sensor_module, CONFIG_SENSOR_MODULE_LOG_LEVEL);
 				.sensor_warmup_complete = {false}))                                   \
 	}
 
-/* ZBUS subscriber for sensor requests */
-ZBUS_SUBSCRIBER_DEFINE(sensor_request_subscriber, CONFIG_SENSOR_MODULE_ZBUS_SUBSCRIBER_QUEUE_SIZE);
+/* ZBUS channel definition */
+ZBUS_CHAN_DEFINE(sensor_chan, struct sensor_msg, NULL, NULL, ZBUS_OBSERVERS_EMPTY,
+		 ZBUS_MSG_INIT(0));
+
+/* ZBUS register subscriber */
+ZBUS_MSG_SUBSCRIBER_DEFINE(sensor_subscriber);
+
+/* ZBUS channel observations */
+ZBUS_CHAN_ADD_OBS(sensor_chan, sensor_subscriber, 0);
+
+#define MAX_MSG_SIZE sizeof(struct sensor_msg)
+
+/* CCS811 environmental compensation configuration */
+#define SENSOR_VALUE_TO_MICRO(val) ((val)->val1 * 1000000UL + (val)->val2)
 
 /* Sensor state machine states */
 enum sensor_module_state {
@@ -60,6 +72,12 @@ struct sensor_state_object {
 
 	/* Current sensor data */
 	struct sensor_msg current_data;
+
+	/* Last channel type that a message was received on */
+	const struct zbus_channel *chan;
+
+	/* Buffer for last zbus message */
+	uint8_t msg_buf[MAX_MSG_SIZE];
 
 	/* Error handling */
 	int error_count;
@@ -101,13 +119,6 @@ static struct sensor_state_object sensor_state_obj;
 
 /* Thread synchronization */
 static K_MUTEX_DEFINE(sensor_sm_mutex);
-
-/* CCS811 environmental compensation configuration */
-#define SENSOR_VALUE_TO_MICRO(val) ((val)->val1 * 1000000UL + (val)->val2)
-
-/* ZBUS channel definition */
-ZBUS_CHAN_DEFINE(sensor_chan, struct sensor_msg, NULL, NULL,
-		 ZBUS_OBSERVERS(sensor_request_subscriber), ZBUS_MSG_INIT(0));
 
 /* Sensor device pointers */
 static struct sensor_info sensors[SENSOR_TYPE_COUNT] = {
@@ -164,9 +175,6 @@ static void sensor_thread(void *p1, void *p2, void *p3)
 	ARG_UNUSED(p2);
 	ARG_UNUSED(p3);
 
-	const struct zbus_channel *chan;
-	const struct sensor_msg *msg;
-
 	/* Initialize state machine context */
 	sensor_state_obj = SENSOR_STATE_OBJECT_INIT();
 	sensor_state_obj.max_retries = CONFIG_SENSOR_MODULE_MAX_RETRIES;
@@ -187,39 +195,27 @@ static void sensor_thread(void *p1, void *p2, void *p3)
 	LOG_INF("Sensor module thread started");
 	while (1) {
 		/* Wait for messages directly from ZBUS subscriber */
-		if (zbus_sub_wait(&sensor_request_subscriber, &chan, K_FOREVER) == 0) {
-			if (chan == &sensor_chan) {
-				const void *chan_msg = zbus_chan_const_msg(chan);
+		int err = zbus_sub_wait_msg(&sensor_subscriber, &sensor_state_obj.chan,
+					    sensor_state_obj.msg_buf, K_FOREVER);
+		if (err == 0 && sensor_state_obj.chan == &sensor_chan) {
+			struct sensor_msg msg = MSG_TO_SENSOR_MSG(sensor_state_obj.msg_buf);
+			if (msg.type == SENSOR_SAMPLE_REQUEST) {
+				LOG_DBG("Processing sensor request directly");
 
-				if (chan_msg != NULL) {
-					msg = &MSG_TO_SENSOR_MSG(chan_msg);
-
-					if (msg->type == SENSOR_SAMPLE_REQUEST) {
-						LOG_DBG("Processing sensor request directly");
-
-						/* Trigger state machine to read sensors with mutex
-						 * protection */
-						k_mutex_lock(&sensor_sm_mutex, K_FOREVER);
-						if (sensor_state_obj.current_state ==
-						    SENSOR_MODULE_STATE_IDLE) {
-							sensor_set_state(
-								&sensor_state_obj,
-								SENSOR_MODULE_STATE_READING);
-						}
-
-						/* Run state machine - this performs blocking sensor
-						 * operations */
-						int ret = smf_run_state(SMF_CTX(&sensor_state_obj));
-						if (ret < 0) {
-							LOG_ERR("State machine execution failed "
-								"(%d)",
-								ret);
-							/* Error handling is done internally by the
-							 * state machine */
-						}
-						k_mutex_unlock(&sensor_sm_mutex);
-					}
+				/* Trigger state machine to read sensors with mutex protection */
+				k_mutex_lock(&sensor_sm_mutex, K_FOREVER);
+				if (sensor_state_obj.current_state == SENSOR_MODULE_STATE_IDLE) {
+					sensor_set_state(&sensor_state_obj,
+							 SENSOR_MODULE_STATE_READING);
 				}
+
+				/* Run state machine - this performs blocking sensor operations */
+				int ret = smf_run_state(SMF_CTX(&sensor_state_obj));
+				if (ret < 0) {
+					LOG_ERR("State machine execution failed (%d)", ret);
+					/* Error handling is done internally by the state machine */
+				}
+				k_mutex_unlock(&sensor_sm_mutex);
 			}
 		}
 
