@@ -56,18 +56,6 @@ config CONTROLLER_MODULE_RECOVERY_DELAY_MS
 	help
 	  Delay before attempting recovery from error state.
 
-config CONTROLLER_MODULE_MAX_RECOVERY_ATTEMPTS
-	int "Maximum recovery attempts"
-	default 5
-	help
-	  Maximum number of recovery attempts before giving up.
-
-config CONTROLLER_MODULE_RECOVERY_RETRY_DELAY_MS
-	int "Delay between recovery retry attempts (ms)"
-	default 1000
-	help
-	  Delay between recovery retry attempts when recovery fails.
-
 config CONTROLLER_MODULE_AUTO_START_SAMPLING
 	bool "Auto-start sensor sampling"
 	default y
