@@ -44,6 +44,15 @@ config SENSOR_MODULE_MAX_RETRIES
 	help
 	  Maximum number of recovery attempts before giving up.
 
+config SENSOR_MODULE_TIMESTAMP
+	bool "Include timestamps in sensor data"
+	depends on DATE_TIME
+	default y
+	help
+	  Enable inclusion of timestamps in sensor messages sent via the sensor_chan ZBUS channel.
+	  The timestamp format is UTC, which is seconds since the epoch (January 1, 1970, 00:00:00 UTC),
+	  as provided by date_time_now().
+
 # Sensor-specific warmup configurations
 config SENSOR_MODULE_WARMUP_ENABLE
 	bool "Enable sensor warmup periods"

@@ -9,6 +9,10 @@
 #include <zephyr/logging/log.h>
 #include <zephyr/smf.h>
 
+#if defined(CONFIG_SENSOR_MODULE_TIMESTAMP)
+#include <date_time.h>
+#endif
+
 LOG_MODULE_REGISTER(sensor_module, CONFIG_SENSOR_MODULE_LOG_LEVEL);
 
 /* Macro to validate sensor type enum values */
@@ -311,8 +315,15 @@ static void sensor_state_reading_run(void *obj)
 
 	/* Initialize response */
 	ctx->current_data.type = SENSOR_SAMPLE_RESPONSE;
-	ctx->current_data.timestamp = k_uptime_get();
-	ctx->last_read_time = ctx->current_data.timestamp;
+	ctx->last_read_time = k_uptime_get();
+#if defined(CONFIG_SENSOR_MODULE_TIMESTAMP)
+	ret = date_time_now(&ctx->current_data.timestamp);
+	if (ret < 0) {
+		LOG_ERR("Sensor SM: Failed to get current timestamp (%d)", ret);
+		LOG_WRN("Sensor SM: Setting timestamp to 0");
+		ctx->current_data.timestamp = 0;
+	}
+#endif
 
 	int successful_reads = 0;
 

@@ -69,8 +69,10 @@ struct sensor_msg {
 	struct sensor_value co;
 	struct sensor_value temperature_sen0466;
 
+#if defined(CONFIG_SENSOR_MODULE_TIMESTAMP)
 	/* Timestamp - only valid for SENSOR_SAMPLE_RESPONSE */
 	int64_t timestamp;
+#endif
 };
 
 /* ZBUS channel declaration */

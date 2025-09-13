@@ -359,7 +359,10 @@ static void log_sensor_data(const struct sensor_msg *msg)
 	LOG_INF("SEN0466: CO: %d ppm, Temp: %d.%06d C", msg->co.val1, msg->temperature_sen0466.val1,
 		msg->temperature_sen0466.val2);
 
-	LOG_INF("Sensor data timestamp: %lld ms", msg->timestamp);
+#if defined(CONFIG_SENSOR_MODULE_TIMESTAMP)
+	/* Log timestamp if enabled */
+	LOG_INF("Sensor data timestamp: %lld seconds since epoch (UTC)", msg->timestamp);
+#endif
 }
 
 /* Helper function to set state and keep current_state field in sync */
