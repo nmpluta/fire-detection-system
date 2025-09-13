@@ -51,12 +51,8 @@ int main(void)
 		return 0;
 	}
 
-	/* Initialize controller module */
-	ret = controller_module_init();
-	if (ret < 0) {
-		LOG_ERR("Controller module initialization failed");
-		return 0;
-	}
+	/* Wait a moment for threads to start up, then start sampling */
+	k_sleep(K_MSEC(1000));
 
 	/* Start data sampling */
 	ret = controller_module_start_sampling();
@@ -65,7 +61,7 @@ int main(void)
 		return 0;
 	}
 
-	LOG_INF("System initialized successfully");
+	LOG_INF("Data sampling started");
 
 	while (1) {
 		k_sleep(K_SECONDS(MAIN_LOOP_SLEEP_SECONDS));

@@ -124,10 +124,6 @@ static struct sensor_info sensors[SENSOR_TYPE_COUNT] = {
 	[SENSOR_TYPE_SEN0466] = {
 		.device = DEVICE_DT_GET(DT_NODELABEL(sen0466)), .health = {0}, .enabled = true}};
 
-/* Thread stack and data */
-static K_THREAD_STACK_DEFINE(sensor_thread_stack, CONFIG_SENSOR_MODULE_STACK_SIZE);
-static struct k_thread sensor_thread_data;
-
 /* Forward declarations */
 static void sensor_thread(void *p1, void *p2, void *p3);
 static int init_sensors(void);
@@ -147,42 +143,6 @@ static void handle_ccs811_env_compensation(const struct sensor_value *temp,
 					   const struct sensor_value *hum);
 static void handle_ccs811_fallback_compensation(void);
 #endif
-
-int sensor_module_init(void)
-{
-	int ret;
-
-	/* Initialize state machine context */
-	sensor_state_obj = SENSOR_STATE_OBJECT_INIT();
-
-	sensor_state_obj.max_retries = CONFIG_SENSOR_MODULE_MAX_RETRIES;
-	sensor_state_obj.read_timeout_ms = CONFIG_SENSOR_MODULE_READ_TIMEOUT_MS;
-
-	/* Initialize state machine */
-	smf_set_initial(SMF_CTX(&sensor_state_obj), &sensor_states[SENSOR_MODULE_STATE_INIT]);
-	sensor_state_obj.current_state = SENSOR_MODULE_STATE_INIT;
-
-	LOG_INF("Sensor state machine initialized");
-
-	/* Initialize sensors using state machine with mutex protection */
-	k_mutex_lock(&sensor_sm_mutex, K_FOREVER);
-	ret = smf_run_state(SMF_CTX(&sensor_state_obj));
-	k_mutex_unlock(&sensor_sm_mutex);
-	if (ret < 0) {
-		LOG_ERR("Failed to run sensor state machine (%d)", ret);
-		return ret;
-	}
-
-	/* Create single sensor thread for processing ZBUS messages */
-	k_thread_create(&sensor_thread_data, sensor_thread_stack,
-			K_THREAD_STACK_SIZEOF(sensor_thread_stack), sensor_thread, NULL, NULL, NULL,
-			CONFIG_SENSOR_MODULE_THREAD_PRIORITY, 0, K_NO_WAIT);
-
-	k_thread_name_set(&sensor_thread_data, "sensor_module");
-
-	LOG_INF("Sensor module initialized successfully - sensor thread running");
-	return 0;
-}
 
 int sensor_module_request_data(void)
 {
@@ -208,8 +168,24 @@ static void sensor_thread(void *p1, void *p2, void *p3)
 	const struct zbus_channel *chan;
 	const struct sensor_msg *msg;
 
-	LOG_INF("Sensor thread started - processing ZBUS requests directly");
+	/* Initialize state machine context */
+	sensor_state_obj = SENSOR_STATE_OBJECT_INIT();
+	sensor_state_obj.max_retries = CONFIG_SENSOR_MODULE_MAX_RETRIES;
+	sensor_state_obj.read_timeout_ms = CONFIG_SENSOR_MODULE_READ_TIMEOUT_MS;
 
+	/* Initialize state machine */
+	smf_set_initial(SMF_CTX(&sensor_state_obj), &sensor_states[SENSOR_MODULE_STATE_INIT]);
+	sensor_state_obj.current_state = SENSOR_MODULE_STATE_INIT;
+
+	/* Run initial state machine setup */
+	k_mutex_lock(&sensor_sm_mutex, K_FOREVER);
+	int ret = smf_run_state(SMF_CTX(&sensor_state_obj));
+	k_mutex_unlock(&sensor_sm_mutex);
+	if (ret < 0) {
+		LOG_ERR("Failed to run sensor state machine (%d)", ret);
+	}
+
+	LOG_INF("Sensor module thread started");
 	while (1) {
 		/* Wait for messages directly from ZBUS subscriber */
 		if (zbus_sub_wait(&sensor_request_subscriber, &chan, K_FOREVER) == 0) {
@@ -843,3 +819,7 @@ static bool is_sensor_warmup_complete(enum sensor_type type)
 	return false;
 }
 #endif /* CONFIG_SENSOR_MODULE_WARMUP_ENABLE */
+
+/* Define sensor module thread statically */
+K_THREAD_DEFINE(sensor_module_thread_id, CONFIG_SENSOR_MODULE_STACK_SIZE, sensor_thread, NULL, NULL,
+		NULL, K_LOWEST_APPLICATION_THREAD_PRIO, 0, 0);

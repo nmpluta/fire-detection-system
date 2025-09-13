@@ -82,15 +82,6 @@ ZBUS_CHAN_DECLARE(sensor_chan);
 #define MSG_TO_SENSOR_MSG(_msg) (*(const struct sensor_msg *)_msg)
 
 /**
- * @brief Initialize the sensor module
- *
- * This function initializes all sensors and starts the sensor thread.
- *
- * @return 0 on success, negative error code on failure
- */
-int sensor_module_init(void);
-
-/**
  * @brief Request sensor data
  *
  * This function sends a SENSOR_SAMPLE_REQUEST message via ZBUS channel.

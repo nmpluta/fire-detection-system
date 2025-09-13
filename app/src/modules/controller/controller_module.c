@@ -21,8 +21,7 @@ ZBUS_SUBSCRIBER_DEFINE(controller_sensor_subscriber,
 	{                                                                                          \
 		.sample_interval_ms = CONFIG_CONTROLLER_MODULE_SAMPLE_INTERVAL_MS,                 \
 		.max_retries = CONFIG_CONTROLLER_MODULE_MAX_RETRIES, .sampling_active = false,     \
-		.sensor_module_ready = false, .network_connected = false, .ctx = {0},              \
-		.error_count = 0, .last_sample_time = 0,                                           \
+		.network_connected = false, .ctx = {0}, .error_count = 0, .last_sample_time = 0,   \
 		.current_state = CONTROLLER_MODULE_STATE_INIT,                                     \
 	}
 
@@ -43,7 +42,6 @@ struct controller_state_object {
 	int max_retries;
 
 	/* Module status tracking */
-	bool sensor_module_ready;
 	bool network_connected;
 };
 
@@ -73,10 +71,6 @@ static struct controller_state_object controller_state_obj;
 /* Thread synchronization */
 static K_MUTEX_DEFINE(controller_sm_mutex);
 
-/* Thread stack and data */
-static K_THREAD_STACK_DEFINE(controller_thread_stack, CONFIG_CONTROLLER_MODULE_STACK_SIZE);
-static struct k_thread controller_thread_data;
-
 /* Forward declarations */
 static void controller_thread(void *p1, void *p2, void *p3);
 static void sensor_response_callback(const struct zbus_channel *chan);
@@ -94,42 +88,6 @@ ZBUS_LISTENER_DEFINE(controller_network_listener, network_response_callback);
 /* Register listeners as observers for their respective channels */
 ZBUS_CHAN_ADD_OBS(network_chan, controller_network_listener, 0);
 ZBUS_CHAN_ADD_OBS(sensor_chan, controller_sensor_listener, 0);
-
-int controller_module_init(void)
-{
-	int ret;
-
-	LOG_INF("Initializing controller module");
-
-	/* Initialize state machine object */
-	controller_state_obj = CONTROLLER_STATE_OBJECT_INIT();
-
-	/* Initialize state machine */
-	smf_set_initial(SMF_CTX(&controller_state_obj),
-			&controller_states[CONTROLLER_MODULE_STATE_INIT]);
-	controller_state_obj.current_state = CONTROLLER_MODULE_STATE_INIT;
-
-	LOG_INF("Controller state machine initialized");
-
-	/* Run initial state machine setup */
-	k_mutex_lock(&controller_sm_mutex, K_FOREVER);
-	ret = smf_run_state(SMF_CTX(&controller_state_obj));
-	k_mutex_unlock(&controller_sm_mutex);
-	if (ret < 0) {
-		LOG_ERR("Failed to run controller state machine (%d)", ret);
-		return ret;
-	}
-
-	/* Create controller thread */
-	k_thread_create(&controller_thread_data, controller_thread_stack,
-			K_THREAD_STACK_SIZEOF(controller_thread_stack), controller_thread, NULL,
-			NULL, NULL, CONFIG_CONTROLLER_MODULE_THREAD_PRIORITY, 0, K_NO_WAIT);
-
-	k_thread_name_set(&controller_thread_data, "controller_module");
-
-	LOG_INF("Controller module initialized successfully");
-	return 0;
-}
 
 int controller_module_start_sampling(void)
 {
@@ -178,8 +136,23 @@ static void controller_thread(void *p1, void *p2, void *p3)
 
 	const struct zbus_channel *chan;
 
-	LOG_INF("Controller thread started");
+	/* Initialize state machine object */
+	controller_state_obj = CONTROLLER_STATE_OBJECT_INIT();
 
+	/* Initialize state machine */
+	smf_set_initial(SMF_CTX(&controller_state_obj),
+			&controller_states[CONTROLLER_MODULE_STATE_INIT]);
+	controller_state_obj.current_state = CONTROLLER_MODULE_STATE_INIT;
+
+	/* Run initial state machine setup */
+	k_mutex_lock(&controller_sm_mutex, K_FOREVER);
+	int ret = smf_run_state(SMF_CTX(&controller_state_obj));
+	k_mutex_unlock(&controller_sm_mutex);
+	if (ret < 0) {
+		LOG_ERR("Failed to run controller state machine (%d)", ret);
+	}
+
+	LOG_INF("Controller module thread started");
 	while (1) {
 		/* Check for ZBUS messages with timeout */
 		int ret = zbus_sub_wait(&controller_sensor_subscriber, &chan,
@@ -206,24 +179,12 @@ static void controller_thread(void *p1, void *p2, void *p3)
 /* State machine implementation */
 static void controller_state_init_run(void *obj)
 {
-	int ret;
 	struct controller_state_object *ctx = (struct controller_state_object *)obj;
 
 	LOG_INF("SM: Initializing");
 
-	/* Initialize sensor module */
-	ret = sensor_module_init();
-	if (ret < 0) {
-		LOG_ERR("SM: Sensor module initialization failed (%d)", ret);
-		ctx->error_count++;
-		controller_set_state(ctx, CONTROLLER_MODULE_STATE_ERROR);
-		return;
-	}
-
-	ctx->sensor_module_ready = true;
+	/* Reset error count */
 	ctx->error_count = 0;
-
-	LOG_INF("SM: Initialization complete");
 
 	controller_set_state(ctx, CONTROLLER_MODULE_STATE_IDLE);
 }
@@ -294,29 +255,12 @@ static void controller_state_recovery_run(void *obj)
 
 	LOG_INF("SM: Attempting recovery");
 
-	/* Reset error count and try to recover */
+	/* Reset error count and sampling status */
 	ctx->error_count = 0;
 	ctx->sampling_active = false;
-	ctx->sensor_module_ready = false;
 
-	/* Re-initialize sensor module */
-	int ret = sensor_module_init();
-	if (ret < 0) {
-		LOG_ERR("SM: Recovery failed (%d)", ret);
-		ctx->error_count++;
-
-		if (ctx->error_count > CONFIG_CONTROLLER_MODULE_MAX_RECOVERY_ATTEMPTS) {
-			LOG_ERR("SM: Recovery attempts exhausted");
-			controller_set_state(ctx, CONTROLLER_MODULE_STATE_ERROR);
-		} else {
-			/* Try recovery again */
-			k_sleep(K_MSEC(CONFIG_CONTROLLER_MODULE_RECOVERY_RETRY_DELAY_MS));
-		}
-	} else {
-		LOG_INF("SM: Recovery successful");
-		ctx->sensor_module_ready = true;
-		controller_set_state(ctx, CONTROLLER_MODULE_STATE_IDLE);
-	}
+	/* For now, just move back to idle */
+	controller_set_state(ctx, CONTROLLER_MODULE_STATE_IDLE);
 }
 
 static void sensor_response_callback(const struct zbus_channel *chan)
@@ -452,3 +396,7 @@ static void network_response_callback(const struct zbus_channel *chan)
 		k_mutex_unlock(&controller_sm_mutex);
 	}
 }
+
+/* Define controller module thread statically */
+K_THREAD_DEFINE(controller_module_thread_id, CONFIG_CONTROLLER_MODULE_STACK_SIZE, controller_thread,
+		NULL, NULL, NULL, CONFIG_CONTROLLER_MODULE_THREAD_PRIORITY, 0, 0);

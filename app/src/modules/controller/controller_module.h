@@ -38,16 +38,6 @@ enum controller_module_event {
 };
 
 /**
- * @brief Initialize the controller module
- *
- * This function initializes the controller state machine and starts the
- * controller thread that coordinates all other modules.
- *
- * @return 0 on success, negative error code on failure
- */
-int controller_module_init(void);
-
-/**
  * @brief Start data sampling
  *
  * Instructs the controller to begin periodic sensor data collection.
