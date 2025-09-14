@@ -1,0 +1,19 @@
+#
+# Copyright (c) 2024 Nordic Semiconductor ASA
+#
+# SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
+#
+
+menu "Asset Tracker Template"
+
+rsource "src/Kconfig.main"
+rsource "src/modules/network/Kconfig.network"
+rsource "src/modules/cloud/Kconfig.cloud"
+rsource "src/modules/location/Kconfig.location"
+rsource "src/modules/environmental/Kconfig.environmental"
+
+endmenu
+
+menu "Zephyr Kernel"
+source "Kconfig.zephyr"
+endmenu
