@@ -28,7 +28,7 @@ config CONTROLLER_MODULE_THREAD_PRIORITY
 
 config CONTROLLER_MODULE_SAMPLE_INTERVAL_MS
 	int "Default sensor sampling interval (ms)"
-	default 1000
+	default 5000
 	help
 	  Default interval between sensor data requests.
 
@@ -37,12 +37,6 @@ config CONTROLLER_MODULE_THREAD_SLEEP_MS
 	default 100
 	help
 	  Sleep interval for the controller module thread main loop.
-
-config CONTROLLER_MODULE_ZBUS_SUBSCRIBER_QUEUE_SIZE
-	int "ZBUS subscriber queue size"
-	default 4
-	help
-	  Queue size for the ZBUS controller subscriber.
 
 config CONTROLLER_MODULE_MAX_RETRIES
 	int "Maximum error retries"
