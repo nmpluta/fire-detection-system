@@ -41,6 +41,12 @@ LOG_MODULE_REGISTER(cloud, CONFIG_APP_CLOUD_LOG_LEVEL);
 
 #define CUSTOM_JSON_APPID_VAL_CONEVAL "CONEVAL"
 #define CUSTOM_JSON_APPID_VAL_BATTERY "BATTERY"
+#define CUSTOM_JSON_APPID_VAL_CO2     "CO2"
+#define CUSTOM_JSON_APPID_VAL_VOC     "VOC"
+#define CUSTOM_JSON_APPID_VAL_PM1_0   "PM1_0"
+#define CUSTOM_JSON_APPID_VAL_PM2_5   "PM2_5"
+#define CUSTOM_JSON_APPID_VAL_PM10    "PM10"
+#define CUSTOM_JSON_APPID_VAL_CO      "CO"
 
 #define AGNSS_MAX_DATA_SIZE 3800
 
@@ -86,7 +92,7 @@ enum priv_cloud_msg {
 
 /* Create private cloud channel for internal messaging that is not intended for external use.
  * The channel is needed to communicate from asynchronous callbacks to the state machine and
- * ensure state transitions only happen from the cloud  module thread where the state machine
+ * ensure state transitions only happen from the cloud module thread where the state machine
  * is running.
  */
 ZBUS_CHAN_DEFINE(PRIV_CLOUD_CHAN, enum priv_cloud_msg, NULL, NULL, ZBUS_OBSERVERS(cloud_subscriber),
@@ -785,6 +791,54 @@ static void state_connected_ready_run(void *obj)
 			if (err) {
 				LOG_ERR("nrf_cloud_coap_sensor_send, error: %d", err);
 
+				send_request_failed();
+				return;
+			}
+
+			err = nrf_cloud_coap_sensor_send(CUSTOM_JSON_APPID_VAL_CO2, msg.co2,
+							 msg.timestamp, confirmable);
+			if (err) {
+				LOG_ERR("nrf_cloud_coap_sensor_send (CO2), error: %d", err);
+				send_request_failed();
+				return;
+			}
+
+			err = nrf_cloud_coap_sensor_send(CUSTOM_JSON_APPID_VAL_VOC, msg.voc,
+							 msg.timestamp, confirmable);
+			if (err) {
+				LOG_ERR("nrf_cloud_coap_sensor_send (VOC), error: %d", err);
+				send_request_failed();
+				return;
+			}
+
+			err = nrf_cloud_coap_sensor_send(CUSTOM_JSON_APPID_VAL_PM1_0, msg.pm1_0,
+							 msg.timestamp, confirmable);
+			if (err) {
+				LOG_ERR("nrf_cloud_coap_sensor_send (PM1_0), error: %d", err);
+				send_request_failed();
+				return;
+			}
+
+			err = nrf_cloud_coap_sensor_send(CUSTOM_JSON_APPID_VAL_PM2_5, msg.pm2_5,
+							 msg.timestamp, confirmable);
+			if (err) {
+				LOG_ERR("nrf_cloud_coap_sensor_send (PM2_5), error: %d", err);
+				send_request_failed();
+				return;
+			}
+
+			err = nrf_cloud_coap_sensor_send(CUSTOM_JSON_APPID_VAL_PM10, msg.pm10,
+							 msg.timestamp, confirmable);
+			if (err) {
+				LOG_ERR("nrf_cloud_coap_sensor_send (PM10), error: %d", err);
+				send_request_failed();
+				return;
+			}
+
+			err = nrf_cloud_coap_sensor_send(CUSTOM_JSON_APPID_VAL_CO, msg.co,
+							 msg.timestamp, confirmable);
+			if (err) {
+				LOG_ERR("nrf_cloud_coap_sensor_send (CO), error: %d", err);
 				send_request_failed();
 				return;
 			}

@@ -1,5 +1,55 @@
 /*
- * Copyright (c) 2025 Nordic Semiconductor ASA
- *
- * SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
+ * Copyright (c) 2025 Natalia Pluta
+ * SPDX-License-Identifier: Apache-2.0
  */
+
+&pinctrl {
+	i2c2_default_alt: i2c2_default_alt {
+		group1 {
+			psels = <NRF_PSEL(TWIM_SDA, 0, 30)>,
+					<NRF_PSEL(TWIM_SCL, 0, 31)>;
+		};
+	};
+
+	i2c2_sleep_alt: i2c2_sleep_alt {
+		group1 {
+			psels = <NRF_PSEL(TWIM_SDA, 0, 30)>,
+					<NRF_PSEL(TWIM_SCL, 0, 31)>;
+			low-power-enable;
+		};
+	};
+};
+
+&i2c2 {
+	status = "okay";
+	pinctrl-0 = <&i2c2_default_alt>;
+	pinctrl-1 = <&i2c2_sleep_alt>;
+	pinctrl-names = "default", "sleep";
+	
+	bme280: bme280@77 {
+		compatible = "bosch,bme280";
+		reg = <0x77>;
+		status = "okay";
+	};
+	
+	ccs811: ccs811@5b {
+		compatible = "ams,ccs811";
+		reg = <0x5b>;
+		status = "okay";
+		reset-gpios = <&gpio0 23 GPIO_ACTIVE_LOW>;
+		irq-gpios = <&gpio0 24 GPIO_ACTIVE_LOW>;
+		wake-gpios = <&gpio0 25 GPIO_ACTIVE_LOW>;
+	};
+	
+	hm3301: hm3301@40 {
+		compatible = "seeed,hm330x";
+		reg = <0x40>;
+		status = "okay";
+	};
+
+	sen0466: sen0466@74 {
+		compatible = "dfrobot,sen0466";
+		reg = <0x74>;
+		status = "okay";
+	};
+};

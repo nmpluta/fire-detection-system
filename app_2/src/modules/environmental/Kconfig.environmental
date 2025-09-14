@@ -6,7 +6,7 @@
 
 menuconfig APP_ENVIRONMENTAL
 	bool "Environmental module"
-	depends on BME680
+	depends on BME280
 	default y
 
 if APP_ENVIRONMENTAL
